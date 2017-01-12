@@ -1,0 +1,73 @@
+diff --git a/auto/lib/openssl/conf b/auto/lib/openssl/conf
+index 39d9602..28d3f84 100644
+--- a/auto/lib/openssl/conf
++++ b/auto/lib/openssl/conf
+@@ -53,8 +53,33 @@ else
+         ngx_feature_path=
+         ngx_feature_libs="-lssl -lcrypto $NGX_LIBDL"
+         ngx_feature_test="SSL_CTX_set_options(NULL, 0)"
++
++        if [ $WOLFSSL != NONE ]; then
++            ngx_feature="wolfSSL library in $WOLFSSL"
++            ngx_feature_path="$WOLFSSL/include/wolfssl"
++
++            if [ $NGX_RPATH = YES ]; then
++                ngx_feature_libs="-R$WOLFSSL/lib -L$WOLFSSL/lib -lwolfssl $NGX_LIBDL"
++            else
++                ngx_feature_libs="-L$WOLFSSL/lib -lwolfssl $NGX_LIBDL"
++            fi
++
++            CORE_INCS="$CORE_INCS $WOLFSSL/include/wolfssl"
++            CFLAGS="$CFLAGS -DWOLFSSL_NGINX"
++        fi
++
+         . auto/feature
+ 
++        if [ $WOLFSSL != NONE -a $ngx_found = no ]; then
++cat << END
++
++$0: error: Could not find wolfSSL at $WOLFSSL/include/wolfssl.
++SSL modules require the wolfSSL library.
++
++END
++            exit 1
++        fi
++
+         if [ $ngx_found = no ]; then
+ 
+             # FreeBSD port
+diff --git a/auto/options b/auto/options
+index 43724b1..b26fd9d 100644
+--- a/auto/options
++++ b/auto/options
+@@ -141,6 +141,7 @@ PCRE_OPT=
+ PCRE_CONF_OPT=
+ PCRE_JIT=NO
+ 
++WOLFSSL=NONE
+ USE_OPENSSL=NO
+ OPENSSL=NONE
+ 
+@@ -345,6 +346,7 @@ use the \"--with-mail_ssl_module\" option instead"
+         --with-pcre-opt=*)               PCRE_OPT="$value"          ;;
+         --with-pcre-jit)                 PCRE_JIT=YES               ;;
+ 
++        --with-wolfssl=*)                WOLFSSL="$value"           ;;
+         --with-openssl=*)                OPENSSL="$value"           ;;
+         --with-openssl-opt=*)            OPENSSL_OPT="$value"       ;;
+ 
+diff --git a/src/event/ngx_event_openssl_stapling.c b/src/event/ngx_event_openssl_stapling.c
+index d332c11..bfea170 100644
+--- a/src/event/ngx_event_openssl_stapling.c
++++ b/src/event/ngx_event_openssl_stapling.c
+@@ -313,7 +313,9 @@ ngx_ssl_stapling_issuer(ngx_conf_t *cf, ngx_ssl_t *ssl,
+     for (i = 0; i < n; i++) {
+         issuer = sk_X509_value(chain, i);
+         if (X509_check_issued(issuer, cert) == X509_V_OK) {
+-#if OPENSSL_VERSION_NUMBER >= 0x10100001L
++#ifdef WOLFSSL_NGINX
++            issuer = X509_dup(issuer);
++#elif OPENSSL_VERSION_NUMBER >= 0x10100001L
+             X509_up_ref(issuer);
+ #else
+             CRYPTO_add(&issuer->references, 1, CRYPTO_LOCK_X509);
