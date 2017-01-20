@@ -1,8 +1,8 @@
 diff --git a/auto/lib/openssl/conf b/auto/lib/openssl/conf
-index 39d9602..28d3f84 100644
+index e7d3795..f65d9d5 100644
 --- a/auto/lib/openssl/conf
 +++ b/auto/lib/openssl/conf
-@@ -53,8 +53,33 @@ else
+@@ -61,8 +61,33 @@ else
          ngx_feature_path=
          ngx_feature_libs="-lssl -lcrypto $NGX_LIBDL"
          ngx_feature_test="SSL_CTX_set_options(NULL, 0)"
@@ -57,7 +57,7 @@ index 43724b1..b26fd9d 100644
          --with-openssl-opt=*)            OPENSSL_OPT="$value"       ;;
  
 diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
-index c98e3c2..1b67cbc 100644
+index 3c74b7b..ed58274 100644
 --- a/src/event/ngx_event_openssl.c
 +++ b/src/event/ngx_event_openssl.c
 @@ -330,6 +330,10 @@ ngx_ssl_create(ngx_ssl_t *ssl, ngx_uint_t protocols, void *data)
@@ -119,7 +119,7 @@ index fbc9bc7..1fc3504 100644
  
  
 diff --git a/src/stream/ngx_stream_ssl_module.c b/src/stream/ngx_stream_ssl_module.c
-index 9191641..01c5a3a 100644
+index fb653c5..236d91c 100644
 --- a/src/stream/ngx_stream_ssl_module.c
 +++ b/src/stream/ngx_stream_ssl_module.c
 @@ -14,7 +14,11 @@ typedef ngx_int_t (*ngx_ssl_variable_handler_pt)(ngx_connection_t *c,
