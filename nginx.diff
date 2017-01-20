@@ -56,6 +56,21 @@ index 43724b1..b26fd9d 100644
          --with-openssl=*)                OPENSSL="$value"           ;;
          --with-openssl-opt=*)            OPENSSL_OPT="$value"       ;;
  
+diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
+index c98e3c2..1b67cbc 100644
+--- a/src/event/ngx_event_openssl.c
++++ b/src/event/ngx_event_openssl.c
+@@ -330,6 +330,10 @@ ngx_ssl_create(ngx_ssl_t *ssl, ngx_uint_t protocols, void *data)
+ 
+     SSL_CTX_set_info_callback(ssl->ctx, ngx_ssl_info_callback);
+ 
++#ifdef WOLFSSL_NGINX
++    SSL_CTX_set_verify(ssl->ctx, SSL_VERIFY_NONE, NULL);
++#endif
++
+     return NGX_OK;
+ }
+ 
 diff --git a/src/event/ngx_event_openssl_stapling.c b/src/event/ngx_event_openssl_stapling.c
 index d332c11..bfea170 100644
 --- a/src/event/ngx_event_openssl_stapling.c
@@ -71,3 +86,51 @@ index d332c11..bfea170 100644
              X509_up_ref(issuer);
  #else
              CRYPTO_add(&issuer->references, 1, CRYPTO_LOCK_X509);
+diff --git a/src/http/modules/ngx_http_ssl_module.c b/src/http/modules/ngx_http_ssl_module.c
+index 2771ac1..8197ad3 100644
+--- a/src/http/modules/ngx_http_ssl_module.c
++++ b/src/http/modules/ngx_http_ssl_module.c
+@@ -14,7 +14,11 @@ typedef ngx_int_t (*ngx_ssl_variable_handler_pt)(ngx_connection_t *c,
+     ngx_pool_t *pool, ngx_str_t *s);
+ 
+ 
++#ifndef WOLFSSL_NGINX
+ #define NGX_DEFAULT_CIPHERS     "HIGH:!aNULL:!MD5"
++#else
++#define NGX_DEFAULT_CIPHERS     "ALL"
++#endif
+ #define NGX_DEFAULT_ECDH_CURVE  "auto"
+ 
+ #define NGX_HTTP_NPN_ADVERTISE  "\x08http/1.1"
+diff --git a/src/mail/ngx_mail_ssl_module.c b/src/mail/ngx_mail_ssl_module.c
+index fbc9bc7..1fc3504 100644
+--- a/src/mail/ngx_mail_ssl_module.c
++++ b/src/mail/ngx_mail_ssl_module.c
+@@ -10,7 +10,11 @@
+ #include <ngx_mail.h>
+ 
+ 
++#ifndef WOLFSSL_NGINX
+ #define NGX_DEFAULT_CIPHERS     "HIGH:!aNULL:!MD5"
++#else
++#define NGX_DEFAULT_CIPHERS     "ALL"
++#endif
+ #define NGX_DEFAULT_ECDH_CURVE  "auto"
+ 
+ 
+diff --git a/src/stream/ngx_stream_ssl_module.c b/src/stream/ngx_stream_ssl_module.c
+index 9191641..01c5a3a 100644
+--- a/src/stream/ngx_stream_ssl_module.c
++++ b/src/stream/ngx_stream_ssl_module.c
+@@ -14,7 +14,11 @@ typedef ngx_int_t (*ngx_ssl_variable_handler_pt)(ngx_connection_t *c,
+     ngx_pool_t *pool, ngx_str_t *s);
+ 
+ 
++#ifndef WOLFSSL_NGINX
+ #define NGX_DEFAULT_CIPHERS     "HIGH:!aNULL:!MD5"
++#else
++#define NGX_DEFAULT_CIPHERS     "ALL"
++#endif
+ #define NGX_DEFAULT_ECDH_CURVE  "auto"
+ 
+ 
