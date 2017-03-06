@@ -17,6 +17,9 @@ WN_OCSP_GOOD="$WN_PATH/conf/$OCSP_GOOD"
 WN_OCSP_BAD="$WN_PATH/conf/$OCSP_BAD"
 WN_LOGS="$WN_PATH/logs"
 WN_ERROR_LOG="$WN_LOGS/error.log"
+if [ "$HOST" = "" ]; then
+    HOST="::ffff:127.0.0.1"
+fi
 
 
 if [ ! -f $NGINX_BIN ]; then
@@ -72,6 +75,7 @@ FAIL=0
 UNKNOWN=0
 
 run_nginx() {
+    # valgrind --leak-check=full
     ${NGINX_BIN} -p ${WN_PATH} \
         -g "error_log ${WN_ERROR_LOG} debug;" \
         ${NGINX_OPTS}
@@ -137,7 +141,7 @@ check_log() {
 }
 
 client() {
-    ${WOLFSSL_CLIENT} -r -g -p $PORT $OPTS >$CLIENT_TMP 2>&1
+    ${WOLFSSL_CLIENT} -r -g -p $PORT -h $HOST $OPTS >$CLIENT_TMP 2>&1
 
     echo "# Client Output"
     LOG=$CLIENT_TMP

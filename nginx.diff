@@ -9,7 +9,7 @@ index e7d3795..f65d9d5 100644
 +
 +        if [ $WOLFSSL != NONE ]; then
 +            ngx_feature="wolfSSL library in $WOLFSSL"
-+            ngx_feature_path="$WOLFSSL/include/wolfssl"
++            ngx_feature_path="$WOLFSSL/include/wolfssl $WOLFSSL/include"
 +
 +            if [ $NGX_RPATH = YES ]; then
 +                ngx_feature_libs="-R$WOLFSSL/lib -L$WOLFSSL/lib -lwolfssl $NGX_LIBDL"
@@ -17,7 +17,7 @@ index e7d3795..f65d9d5 100644
 +                ngx_feature_libs="-L$WOLFSSL/lib -lwolfssl $NGX_LIBDL"
 +            fi
 +
-+            CORE_INCS="$CORE_INCS $WOLFSSL/include/wolfssl"
++            CORE_INCS="$CORE_INCS $WOLFSSL/include/wolfssl $WOLFSSL/include"
 +            CFLAGS="$CFLAGS -DWOLFSSL_NGINX"
 +        fi
 +
