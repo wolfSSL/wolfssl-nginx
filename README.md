@@ -53,7 +53,7 @@ There are additional tests available in wolfssl-nginx. These are in addition
 to the Nginx tests. The OpenSSL's superapp is required for OCSP Stapling
 testing. To test:
  1. Change into wolfssl-nginx directory.
- 2. Run the script: ./test.sh
+ 2. Run the script: ./test.sh (If not using IPv6 then set HOST to localhost.)
  3. When working, the number of FAIL and UNKNOWN will be 0.
 
 Testing is only supported on Linux with bash.
