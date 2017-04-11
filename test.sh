@@ -4,7 +4,9 @@ NGINX_SRC="../nginx"
 if [ "$NGINX_BIN" = "" ]; then
     NGINX_BIN="${NGINX_SRC}/objs/nginx"
 fi
-WOLFSSL_SOURCE="../wolfssl"
+if [ "$WOLFSSL_SOURCE" = "" ]; then
+    WOLFSSL_SOURCE="../wolfssl"
+fi
 WOLFSSL_CLIENT="./examples/client/client"
 WOLFSSL_OCSP_CERTS="${WOLFSSL_SOURCE}/certs/ocsp"
 NGINX_CONF="./conf"
@@ -17,7 +19,8 @@ WN_OCSP_GOOD="$WN_PATH/conf/$OCSP_GOOD"
 WN_OCSP_BAD="$WN_PATH/conf/$OCSP_BAD"
 WN_LOGS="$WN_PATH/logs"
 WN_ERROR_LOG="$WN_LOGS/error.log"
-if [ "$HOST" = "" ]; then
+HOST="127.0.0.1"
+if [ "$IPV6" != "" ]; then
     HOST="::ffff:127.0.0.1"
 fi
 
