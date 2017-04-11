@@ -65,7 +65,7 @@ index 3c74b7b..ed58274 100644
      SSL_CTX_set_info_callback(ssl->ctx, ngx_ssl_info_callback);
  
 +#ifdef WOLFSSL_NGINX
-+    SSL_CTX_set_verify(ssl->ctx, SSL_VERIFY_NONE, NULL);
++    SSL_CTX_set_verify(ssl->ctx, SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
 +#endif
 +
      return NGX_OK;

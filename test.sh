@@ -305,6 +305,28 @@ OPTS=
 SERVER_OPTS="-c certs/server-ecc.pem -k certs/ecc-key.pem"
 EXPECT=("HTTP/1.1 200 OK" "Welcome to wolf")
 client_test
+# Proxy to localhost:11111 - ECDHE-ECDSA
+echo
+echo '#'
+echo '# Proxy - ECDHE-ECDSA'
+echo '#'
+PORT=11463
+echo "# Port: $PORT"
+OPTS=
+SERVER_OPTS="-c certs/server-ecc.pem -k certs/ecc-key.pem"
+EXPECT=("HTTP/1.1 200 OK" "Welcome to wolf")
+client_test
+# Proxy to localhost:11111 - ECDHE-ECDSA
+echo
+echo '#'
+echo '# Proxy - ECDHE-ECDSA'
+echo '#'
+PORT=11464
+echo "# Port: $PORT"
+OPTS=
+SERVER_OPTS="-c certs/server-ecc.pem -k certs/ecc-key.pem"
+EXPECT=("HTTP/1.1 502")
+client_test
 # Proxy to localhost:11111 - Revoked certificate in CRL
 echo
 echo '#'
