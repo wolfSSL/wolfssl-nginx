@@ -52,6 +52,8 @@ authorityKeyIdentifier = keyid,issuer
 subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid:always,issuer:always
 basicConstraints = CA:true
+keyUsage = nonRepudiation,digitalSignature,keyCertSign
+extendedKeyUsage = serverAuth
 EOF
 
 ISSUER=
