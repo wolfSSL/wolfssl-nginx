@@ -72,7 +72,7 @@ diff -ur nginx-1.10.3/src/event/ngx_event_openssl.c nginx-1.10.3-wolfssl/src/eve
      SSL_CTX_set_info_callback(ssl->ctx, ngx_ssl_info_callback);
  
 +#ifdef WOLFSSL_NGINX
-+    SSL_CTX_set_verify(ssl->ctx, SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
++    SSL_CTX_set_verify(ssl->ctx, SSL_VERIFY_NONE, NULL);
 +#endif
 +
      return NGX_OK;
