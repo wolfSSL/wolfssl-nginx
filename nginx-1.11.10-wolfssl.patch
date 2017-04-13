@@ -1,15 +1,14 @@
-diff --git a/auto/lib/openssl/conf b/auto/lib/openssl/conf
-index e7d3795..f65d9d5 100644
---- a/auto/lib/openssl/conf
-+++ b/auto/lib/openssl/conf
-@@ -61,8 +61,33 @@ else
+diff -ur nginx-1.11.10/auto/lib/openssl/conf nginx-1.11.10-wolfssl/auto/lib/openssl/conf
+--- nginx-1.11.10/auto/lib/openssl/conf	2017-02-15 01:36:04.000000000 +1000
++++ nginx-1.11.10-wolfssl/auto/lib/openssl/conf	2017-03-03 12:12:59.991555289 +1000
+@@ -61,8 +61,33 @@
          ngx_feature_path=
          ngx_feature_libs="-lssl -lcrypto $NGX_LIBDL"
          ngx_feature_test="SSL_CTX_set_options(NULL, 0)"
 +
 +        if [ $WOLFSSL != NONE ]; then
 +            ngx_feature="wolfSSL library in $WOLFSSL"
-+            ngx_feature_path="$WOLFSSL/include/wolfssl $WOLFSSL/include"
++            ngx_feature_path="$WOLFSSL/include/wolfssl"
 +
 +            if [ $NGX_RPATH = YES ]; then
 +                ngx_feature_libs="-R$WOLFSSL/lib -L$WOLFSSL/lib -lwolfssl $NGX_LIBDL"
@@ -17,7 +16,7 @@ index e7d3795..f65d9d5 100644
 +                ngx_feature_libs="-L$WOLFSSL/lib -lwolfssl $NGX_LIBDL"
 +            fi
 +
-+            CORE_INCS="$CORE_INCS $WOLFSSL/include/wolfssl $WOLFSSL/include"
++            CORE_INCS="$CORE_INCS $WOLFSSL/include/wolfssl"
 +            CFLAGS="$CFLAGS -DWOLFSSL_NGINX"
 +        fi
 +
@@ -36,11 +35,10 @@ index e7d3795..f65d9d5 100644
          if [ $ngx_found = no ]; then
  
              # FreeBSD port
-diff --git a/auto/options b/auto/options
-index 43724b1..b26fd9d 100644
---- a/auto/options
-+++ b/auto/options
-@@ -141,6 +141,7 @@ PCRE_OPT=
+diff -ur nginx-1.11.10/auto/options nginx-1.11.10-wolfssl/auto/options
+--- nginx-1.11.10/auto/options	2017-02-15 01:36:04.000000000 +1000
++++ nginx-1.11.10-wolfssl/auto/options	2017-03-03 12:12:59.991555289 +1000
+@@ -141,6 +141,7 @@
  PCRE_CONF_OPT=
  PCRE_JIT=NO
  
@@ -48,7 +46,7 @@ index 43724b1..b26fd9d 100644
  USE_OPENSSL=NO
  OPENSSL=NONE
  
-@@ -345,6 +346,7 @@ use the \"--with-mail_ssl_module\" option instead"
+@@ -345,6 +346,7 @@
          --with-pcre-opt=*)               PCRE_OPT="$value"          ;;
          --with-pcre-jit)                 PCRE_JIT=YES               ;;
  
@@ -56,26 +54,26 @@ index 43724b1..b26fd9d 100644
          --with-openssl=*)                OPENSSL="$value"           ;;
          --with-openssl-opt=*)            OPENSSL_OPT="$value"       ;;
  
-diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
-index 3c74b7b..ed58274 100644
---- a/src/event/ngx_event_openssl.c
-+++ b/src/event/ngx_event_openssl.c
-@@ -330,6 +330,10 @@ ngx_ssl_create(ngx_ssl_t *ssl, ngx_uint_t protocols, void *data)
+Only in nginx-1.11.10-wolfssl: Makefile
+Only in nginx-1.11.10-wolfssl: objs
+diff -ur nginx-1.11.10/src/event/ngx_event_openssl.c nginx-1.11.10-wolfssl/src/event/ngx_event_openssl.c
+--- nginx-1.11.10/src/event/ngx_event_openssl.c	2017-02-15 01:36:05.000000000 +1000
++++ nginx-1.11.10-wolfssl/src/event/ngx_event_openssl.c	2017-03-03 12:12:59.991555289 +1000
+@@ -340,6 +340,10 @@
  
      SSL_CTX_set_info_callback(ssl->ctx, ngx_ssl_info_callback);
  
 +#ifdef WOLFSSL_NGINX
-+    SSL_CTX_set_verify(ssl->ctx, SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
++    SSL_CTX_set_verify(ssl->ctx, SSL_VERIFY_NONE, NULL);
 +#endif
 +
      return NGX_OK;
  }
  
-diff --git a/src/event/ngx_event_openssl_stapling.c b/src/event/ngx_event_openssl_stapling.c
-index d332c11..bfea170 100644
---- a/src/event/ngx_event_openssl_stapling.c
-+++ b/src/event/ngx_event_openssl_stapling.c
-@@ -313,7 +313,9 @@ ngx_ssl_stapling_issuer(ngx_conf_t *cf, ngx_ssl_t *ssl,
+diff -ur nginx-1.11.10/src/event/ngx_event_openssl_stapling.c nginx-1.11.10-wolfssl/src/event/ngx_event_openssl_stapling.c
+--- nginx-1.11.10/src/event/ngx_event_openssl_stapling.c	2017-02-15 01:36:05.000000000 +1000
++++ nginx-1.11.10-wolfssl/src/event/ngx_event_openssl_stapling.c	2017-03-03 12:12:59.991555289 +1000
+@@ -313,7 +313,9 @@
      for (i = 0; i < n; i++) {
          issuer = sk_X509_value(chain, i);
          if (X509_check_issued(issuer, cert) == X509_V_OK) {
@@ -86,11 +84,10 @@ index d332c11..bfea170 100644
              X509_up_ref(issuer);
  #else
              CRYPTO_add(&issuer->references, 1, CRYPTO_LOCK_X509);
-diff --git a/src/http/modules/ngx_http_ssl_module.c b/src/http/modules/ngx_http_ssl_module.c
-index 2771ac1..8197ad3 100644
---- a/src/http/modules/ngx_http_ssl_module.c
-+++ b/src/http/modules/ngx_http_ssl_module.c
-@@ -14,7 +14,11 @@ typedef ngx_int_t (*ngx_ssl_variable_handler_pt)(ngx_connection_t *c,
+diff -ur nginx-1.11.10/src/http/modules/ngx_http_ssl_module.c nginx-1.11.10-wolfssl/src/http/modules/ngx_http_ssl_module.c
+--- nginx-1.11.10/src/http/modules/ngx_http_ssl_module.c	2017-02-15 01:36:05.000000000 +1000
++++ nginx-1.11.10-wolfssl/src/http/modules/ngx_http_ssl_module.c	2017-03-03 12:12:59.991555289 +1000
+@@ -14,7 +14,11 @@
      ngx_pool_t *pool, ngx_str_t *s);
  
  
@@ -102,10 +99,9 @@ index 2771ac1..8197ad3 100644
  #define NGX_DEFAULT_ECDH_CURVE  "auto"
  
  #define NGX_HTTP_NPN_ADVERTISE  "\x08http/1.1"
-diff --git a/src/mail/ngx_mail_ssl_module.c b/src/mail/ngx_mail_ssl_module.c
-index fbc9bc7..1fc3504 100644
---- a/src/mail/ngx_mail_ssl_module.c
-+++ b/src/mail/ngx_mail_ssl_module.c
+diff -ur nginx-1.11.10/src/mail/ngx_mail_ssl_module.c nginx-1.11.10-wolfssl/src/mail/ngx_mail_ssl_module.c
+--- nginx-1.11.10/src/mail/ngx_mail_ssl_module.c	2017-02-15 01:36:05.000000000 +1000
++++ nginx-1.11.10-wolfssl/src/mail/ngx_mail_ssl_module.c	2017-03-03 12:12:59.991555289 +1000
 @@ -10,7 +10,11 @@
  #include <ngx_mail.h>
  
@@ -118,11 +114,10 @@ index fbc9bc7..1fc3504 100644
  #define NGX_DEFAULT_ECDH_CURVE  "auto"
  
  
-diff --git a/src/stream/ngx_stream_ssl_module.c b/src/stream/ngx_stream_ssl_module.c
-index fb653c5..236d91c 100644
---- a/src/stream/ngx_stream_ssl_module.c
-+++ b/src/stream/ngx_stream_ssl_module.c
-@@ -14,7 +14,11 @@ typedef ngx_int_t (*ngx_ssl_variable_handler_pt)(ngx_connection_t *c,
+diff -ur nginx-1.11.10/src/stream/ngx_stream_ssl_module.c nginx-1.11.10-wolfssl/src/stream/ngx_stream_ssl_module.c
+--- nginx-1.11.10/src/stream/ngx_stream_ssl_module.c	2017-02-15 01:36:06.000000000 +1000
++++ nginx-1.11.10-wolfssl/src/stream/ngx_stream_ssl_module.c	2017-03-03 12:12:59.991555289 +1000
+@@ -14,7 +14,11 @@
      ngx_pool_t *pool, ngx_str_t *s);
  
  

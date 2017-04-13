@@ -92,7 +92,8 @@ EOF
 $t->write_file('certserial', '1000');
 $t->write_file('certindex', '');
 
-system("openssl ecparam -genkey -name prime256v1 -out '$d/issuer.key'") == 0
+system("openssl ecparam -genkey -name prime256v1 -out '$d/issuer.key' "
+        . ">>$d/openssl.out 2>&1") == 0
         or die "Can't create ECC public key for issuer: $!\n";
 system('openssl req -x509 -new '
 	. "-config '$d/openssl.conf' -subj '/CN=issuer/' "
@@ -100,7 +101,8 @@ system('openssl req -x509 -new '
 	. ">>$d/openssl.out 2>&1") == 0
 	or die "Can't create certificate for issuer: $!\n";
 
-system("openssl ecparam -genkey -name prime256v1 -out '$d/subject.key'") == 0
+system("openssl ecparam -genkey -name prime256v1 -out '$d/subject.key' "
+        . ">>$d/openssl.out 2>&1") == 0
         or die "Can't create ECC public key for subject: $!\n";
 system("openssl req -new "
 	. "-config '$d/openssl.conf' -subj '/CN=subject/' "
@@ -116,7 +118,7 @@ system("openssl ca -batch -config '$d/ca.conf' "
 
 foreach my $name ('localhost') {
         system("openssl ecparam -genkey -name prime256v1 "
-                . "-out '$d/$name.key'") == 0
+                . "-out '$d/$name.key' >>$d/openssl.out 2>&1") == 0
                 or die "Can't create ECC public key for $name: $!\n";
 	system('openssl req -x509 -new '
 		. "-config '$d/openssl.conf' -subj '/CN=$name/' "

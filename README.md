@@ -5,42 +5,46 @@
 wolfSSL is supported in Nginx. There are minor changes to the Nginx code base
 and recompilation is required.
 
-The last tested versions:
- - wolfSSL 3.10
+The tested versions:
+ - wolfSSL 3.11
+ - Nginx 1.12.0
+ - Nginx 1.11.13
+ - Nginx 1.11.10
  - Nginx 1.11.7
+ - Nginx 1.10.3
 
-### Install
+### Building
 
-First you will need both Nginx and wolfSSL source code.
-They can be obtained with the following commands:
- - Nginx: git clone https://github.com/nginx/nginx.git
- - wolfSSL: git clone https://github.com/wolfSSL/wolfssl.git
+First you will need Nginx source package and wolfSSL source code.
 
 Now build and install wolfSSL. The default installation directory is:
     /usr/local.
 
 To enable wolfSSL support in Nginx the source code must be patched:
- 1. Change into Nginx source directory.
- 2. Apply patch: git apply <wolfssl-nginx>/nginx.diff
+ 1. Change into the Nginx source directory.
+ 2. Apply patch: patch -p1 < <wolfssl-nginx>/nginx-<nginx-version>-wolfssl.patch
 
 Now rebuild Nginx:
  1. Configure Nginx with this command (extra options may be added as required):
-   - ./auto/configure --with-wolfssl=/usr/local --with-http_ssl_module
+   - ./configure --with-wolfssl=/usr/local --with-http_ssl_module
  2. Build Nginx: make
-
-Note: The source package may also be used. In this case the configuration
-program is: ./configure
 
 ### Testing
 
 Nginx has a repository of tests that can be obtained with the following command:
  - git clone https://github.com/nginx/nginx-tests.git
 
-To run the tests see the README. Tests are expected to pass with exceptions.
+To run the tests see the README. Tests are expected to pass with exceptions. An example of runnning the tests:
+ 1. Change into nginx-tests directory.
+ 2. Run tests: TEST_NGINX_BINARY=../nginx-<nginx-version>-wolfssl/objs/nginx prove .
 
 There will be skips of SSL tests for the following reasons:
  - no multiple certificates (ssl_certificate.t)
  - many not work, leaves coredump (ssl_engine_keys.t)
+
+-There will be failures of SSL tests for the following reasons:
+- - no support for setting verification depth
+- - no support for certificate authorities in certificate request ("no trusted sent")
 
 Note: the file ssl_ecc.t in wolfssl-nginx can be used with the Nginx test
 system.
@@ -49,7 +53,7 @@ There are additional tests available in wolfssl-nginx. These are in addition
 to the Nginx tests. The OpenSSL's superapp is required for OCSP Stapling
 testing. To test:
  1. Change into wolfssl-nginx directory.
- 2. Run the script: ./test.sh (If not using IPv6 then set HOST to localhost.)
+ 2. Run the script: ./test.sh (If using IPv6 then set IPV6=yes.)
  3. When working, the number of FAIL and UNKNOWN will be 0.
 
 Testing is only supported on Linux with bash.
