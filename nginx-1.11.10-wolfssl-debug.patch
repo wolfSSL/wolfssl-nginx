@@ -1,12 +1,12 @@
 diff -ur nginx-1.11.10-wolfssl/src/event/ngx_event_openssl.c nginx-1.11.10-wolfssl-debug/src/event/ngx_event_openssl.c
---- nginx-1.11.10-wolfssl/src/event/ngx_event_openssl.c	2017-03-03 12:12:59.991555289 +1000
-+++ nginx-1.11.10-wolfssl-debug/src/event/ngx_event_openssl.c	2017-04-13 11:26:40.183675350 +1000
+--- nginx-1.11.10-wolfssl/src/event/ngx_event_openssl.c	2017-04-13 14:53:51.151297965 +1000
++++ nginx-1.11.10-wolfssl-debug/src/event/ngx_event_openssl.c	2017-04-13 15:43:18.269591752 +1000
 @@ -144,6 +144,11 @@
  
  #endif
  
 +#ifdef WOLFSSL_NGINX
-+    /* turn on internal wolfssl debugging to stdout */
++    /* Turn on internal wolfssl debugging to stdout */
 +    wolfSSL_Debugging_ON();
 +#endif
 +

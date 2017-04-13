@@ -62,11 +62,9 @@ diff -ur nginx-1.12.0/auto/options nginx-1.12.0-wolfssl/auto/options
    --with-openssl=DIR                 set path to OpenSSL library sources
    --with-openssl-opt=OPTIONS         set additional build options for OpenSSL
  
-Only in nginx-1.12.0-wolfssl: Makefile
-Only in nginx-1.12.0-wolfssl: objs
 diff -ur nginx-1.12.0/src/event/ngx_event_openssl.c nginx-1.12.0-wolfssl/src/event/ngx_event_openssl.c
 --- nginx-1.12.0/src/event/ngx_event_openssl.c	2017-04-13 00:46:01.000000000 +1000
-+++ nginx-1.12.0-wolfssl/src/event/ngx_event_openssl.c	2017-04-13 09:54:22.594624149 +1000
++++ nginx-1.12.0-wolfssl/src/event/ngx_event_openssl.c	2017-04-13 15:05:43.741185370 +1000
 @@ -340,6 +340,10 @@
  
      SSL_CTX_set_info_callback(ssl->ctx, ngx_ssl_info_callback);
@@ -78,6 +76,32 @@ diff -ur nginx-1.12.0/src/event/ngx_event_openssl.c nginx-1.12.0-wolfssl/src/eve
      return NGX_OK;
  }
  
+@@ -648,6 +652,14 @@
+ 
+ 
+ ngx_int_t
++ngx_ssl_set_verify_on(ngx_conf_t *cf, ngx_ssl_t *ssl)
++{
++    SSL_CTX_set_verify(ssl->ctx, SSL_VERIFY_PEER, ngx_ssl_verify_callback);
++
++    return NGX_OK;
++}
++
++ngx_int_t
+ ngx_ssl_client_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *cert,
+     ngx_int_t depth)
+ {
+diff -ur nginx-1.12.0/src/event/ngx_event_openssl.h nginx-1.12.0-wolfssl/src/event/ngx_event_openssl.h
+--- nginx-1.12.0/src/event/ngx_event_openssl.h	2017-04-13 00:46:01.000000000 +1000
++++ nginx-1.12.0-wolfssl/src/event/ngx_event_openssl.h	2017-04-13 15:06:02.777218149 +1000
+@@ -147,6 +147,7 @@
+     ngx_str_t *cert, ngx_str_t *key, ngx_array_t *passwords);
+ ngx_int_t ngx_ssl_ciphers(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *ciphers,
+     ngx_uint_t prefer_server_ciphers);
++ngx_int_t ngx_ssl_set_verify_on(ngx_conf_t *cf, ngx_ssl_t *ssl);
+ ngx_int_t ngx_ssl_client_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl,
+     ngx_str_t *cert, ngx_int_t depth);
+ ngx_int_t ngx_ssl_trusted_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl,
 diff -ur nginx-1.12.0/src/event/ngx_event_openssl_stapling.c nginx-1.12.0-wolfssl/src/event/ngx_event_openssl_stapling.c
 --- nginx-1.12.0/src/event/ngx_event_openssl_stapling.c	2017-04-13 00:46:01.000000000 +1000
 +++ nginx-1.12.0-wolfssl/src/event/ngx_event_openssl_stapling.c	2017-04-13 09:54:56.830970748 +1000
@@ -92,6 +116,18 @@ diff -ur nginx-1.12.0/src/event/ngx_event_openssl_stapling.c nginx-1.12.0-wolfss
              X509_up_ref(issuer);
  #else
              CRYPTO_add(&issuer->references, 1, CRYPTO_LOCK_X509);
+diff -ur nginx-1.12.0/src/http/modules/ngx_http_proxy_module.c nginx-1.12.0-wolfssl/src/http/modules/ngx_http_proxy_module.c
+--- nginx-1.12.0/src/http/modules/ngx_http_proxy_module.c	2017-04-13 00:46:02.000000000 +1000
++++ nginx-1.12.0-wolfssl/src/http/modules/ngx_http_proxy_module.c	2017-04-13 15:06:24.397256759 +1000
+@@ -4371,6 +4371,8 @@
+             return NGX_ERROR;
+         }
+ 
++        ngx_ssl_set_verify_on(cf, plcf->upstream.ssl);
++
+         if (ngx_ssl_trusted_certificate(cf, plcf->upstream.ssl,
+                                         &plcf->ssl_trusted_certificate,
+                                         plcf->ssl_verify_depth)
 diff -ur nginx-1.12.0/src/http/modules/ngx_http_ssl_module.c nginx-1.12.0-wolfssl/src/http/modules/ngx_http_ssl_module.c
 --- nginx-1.12.0/src/http/modules/ngx_http_ssl_module.c	2017-04-13 00:46:02.000000000 +1000
 +++ nginx-1.12.0-wolfssl/src/http/modules/ngx_http_ssl_module.c	2017-04-13 09:56:08.267656857 +1000
@@ -122,6 +158,18 @@ diff -ur nginx-1.12.0/src/mail/ngx_mail_ssl_module.c nginx-1.12.0-wolfssl/src/ma
  #define NGX_DEFAULT_ECDH_CURVE  "auto"
  
  
+diff -ur nginx-1.12.0/src/stream/ngx_stream_proxy_module.c nginx-1.12.0-wolfssl/src/stream/ngx_stream_proxy_module.c
+--- nginx-1.12.0/src/stream/ngx_stream_proxy_module.c	2017-04-13 00:46:02.000000000 +1000
++++ nginx-1.12.0-wolfssl/src/stream/ngx_stream_proxy_module.c	2017-04-13 15:07:12.337347314 +1000
+@@ -2001,6 +2001,8 @@
+             return NGX_ERROR;
+         }
+ 
++        ngx_ssl_set_verify_on(cf, plcf->ssl);
++
+         if (ngx_ssl_trusted_certificate(cf, pscf->ssl,
+                                         &pscf->ssl_trusted_certificate,
+                                         pscf->ssl_verify_depth)
 diff -ur nginx-1.12.0/src/stream/ngx_stream_ssl_module.c nginx-1.12.0-wolfssl/src/stream/ngx_stream_ssl_module.c
 --- nginx-1.12.0/src/stream/ngx_stream_ssl_module.c	2017-04-13 00:46:02.000000000 +1000
 +++ nginx-1.12.0-wolfssl/src/stream/ngx_stream_ssl_module.c	2017-04-13 09:57:09.364207951 +1000
