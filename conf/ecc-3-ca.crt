@@ -1,0 +1,52 @@
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 4096 (0x1000)
+    Signature Algorithm: ecdsa-with-SHA256
+        Issuer: CN=ecc-3-root
+        Validity
+            Not Before: Apr 13 04:17:19 2017 GMT
+            Not After : Apr 11 04:17:19 2027 GMT
+        Subject: CN=ecc-3-ca
+        Subject Public Key Info:
+            Public Key Algorithm: id-ecPublicKey
+                Public-Key: (256 bit)
+                pub:
+                    04:9a:3c:72:c0:55:c5:61:97:d1:04:8d:44:92:31:
+                    fc:d8:92:3d:58:fa:11:af:e3:ba:b5:4a:62:00:06:
+                    0f:11:ff:c8:b6:50:12:4d:15:ed:67:6f:c8:af:6c:
+                    5e:26:8c:d4:23:fc:38:e2:9f:d6:c5:6a:4a:ac:76:
+                    a7:e2:10:f5:d9
+                ASN1 OID: prime256v1
+                NIST CURVE: P-256
+        X509v3 extensions:
+            X509v3 Subject Key Identifier: 
+                A2:7D:87:7F:41:EE:FC:77:91:7F:8C:21:EA:22:83:FA:3A:05:C0:97
+            X509v3 Authority Key Identifier: 
+                keyid:AA:4F:85:4C:EB:3E:30:B9:88:84:0F:E4:81:17:EB:51:85:38:D7:F4
+                DirName:/CN=ecc-3-root
+                serial:8F:9F:50:14:32:87:37:CD
+
+            X509v3 Basic Constraints: 
+                CA:TRUE
+            X509v3 Key Usage: 
+                Digital Signature, Non Repudiation, Certificate Sign
+            X509v3 Extended Key Usage: 
+                TLS Web Server Authentication
+    Signature Algorithm: ecdsa-with-SHA256
+         30:45:02:20:70:8c:84:94:5a:94:02:ca:00:d2:53:94:58:21:
+         aa:4c:58:2b:fa:bb:f6:89:e5:f0:06:33:97:49:02:bb:d5:a1:
+         02:21:00:83:79:23:a7:49:40:1f:17:2d:65:17:62:8e:7f:3c:
+         69:15:d7:1b:ce:e9:99:9a:e0:b4:ba:0c:c0:8b:97:05:be
+-----BEGIN CERTIFICATE-----
+MIIBsjCCAVigAwIBAgICEAAwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKZWNjLTMt
+cm9vdDAeFw0xNzA0MTMwNDE3MTlaFw0yNzA0MTEwNDE3MTlaMBMxETAPBgNVBAMM
+CGVjYy0zLWNhMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmjxywFXFYZfRBI1E
+kjH82JI9WPoRr+O6tUpiAAYPEf/ItlASTRXtZ2/Ir2xeJozUI/w44p/WxWpKrHan
+4hD12aOBmTCBljAdBgNVHQ4EFgQUon2Hf0Hu/HeRf4wh6iKD+joFwJcwRQYDVR0j
+BD4wPIAUqk+FTOs+MLmIhA/kgRfrUYU41/ShGaQXMBUxEzARBgNVBAMMCmVjYy0z
+LXJvb3SCCQCPn1AUMoc3zTAMBgNVHRMEBTADAQH/MAsGA1UdDwQEAwICxDATBgNV
+HSUEDDAKBggrBgEFBQcDATAKBggqhkjOPQQDAgNIADBFAiBwjISUWpQCygDSU5RY
+IapMWCv6u/aJ5fAGM5dJArvVoQIhAIN5I6dJQB8XLWUXYo5/PGkV1xvO6Zma4LS6
+DMCLlwW+
+-----END CERTIFICATE-----

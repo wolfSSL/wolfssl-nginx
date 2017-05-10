@@ -1,0 +1,96 @@
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 4097 (0x1001)
+    Signature Algorithm: ecdsa-with-SHA256
+        Issuer: CN=ecc-3-ca
+        Validity
+            Not Before: Apr 13 04:17:19 2017 GMT
+            Not After : Apr 11 04:17:19 2027 GMT
+        Subject: CN=ecc-3-leaf
+        Subject Public Key Info:
+            Public Key Algorithm: id-ecPublicKey
+                Public-Key: (256 bit)
+                pub:
+                    04:fb:29:bb:9d:a4:5a:05:a4:ee:3b:fc:e5:2a:29:
+                    50:6b:65:9c:c8:dc:64:0a:e8:66:58:fe:8c:fe:cc:
+                    16:de:02:fb:8a:08:29:d0:57:2d:96:48:04:06:e3:
+                    06:4a:bf:ad:e1:ae:6e:01:3d:ee:40:ed:97:5e:3d:
+                    93:eb:bb:d4:e4
+                ASN1 OID: prime256v1
+                NIST CURVE: P-256
+        X509v3 extensions:
+            X509v3 Basic Constraints: 
+                CA:FALSE
+            X509v3 Subject Key Identifier: 
+                FB:85:93:45:F4:E7:12:B2:03:E9:13:36:B3:A8:83:6A:71:AE:9A:84
+            X509v3 Authority Key Identifier: 
+                keyid:A2:7D:87:7F:41:EE:FC:77:91:7F:8C:21:EA:22:83:FA:3A:05:C0:97
+
+    Signature Algorithm: ecdsa-with-SHA256
+         30:44:02:20:06:e5:65:fc:50:08:94:24:47:32:99:c2:42:3e:
+         74:1a:85:6a:be:4f:b1:ef:26:65:b3:1a:3f:dc:94:5e:ab:9e:
+         02:20:4a:c6:0b:f2:95:da:fa:be:48:d8:f1:e8:21:03:9e:fb:
+         e4:4f:1b:9a:87:e0:96:4e:ef:a3:c8:ac:63:95:f0:c6
+-----BEGIN CERTIFICATE-----
+MIIBZDCCAQugAwIBAgICEAEwCgYIKoZIzj0EAwIwEzERMA8GA1UEAwwIZWNjLTMt
+Y2EwHhcNMTcwNDEzMDQxNzE5WhcNMjcwNDExMDQxNzE5WjAVMRMwEQYDVQQDDApl
+Y2MtMy1sZWFmMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE+ym7naRaBaTuO/zl
+KilQa2WcyNxkCuhmWP6M/swW3gL7iggp0FctlkgEBuMGSr+t4a5uAT3uQO2XXj2T
+67vU5KNNMEswCQYDVR0TBAIwADAdBgNVHQ4EFgQU+4WTRfTnErID6RM2s6iDanGu
+moQwHwYDVR0jBBgwFoAUon2Hf0Hu/HeRf4wh6iKD+joFwJcwCgYIKoZIzj0EAwID
+RwAwRAIgBuVl/FAIlCRHMpnCQj50GoVqvk+x7yZlsxo/3JReq54CIErGC/KV2vq+
+SNjx6CEDnvvkTxuah+CWTu+jyKxjlfDG
+-----END CERTIFICATE-----
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 4096 (0x1000)
+    Signature Algorithm: ecdsa-with-SHA256
+        Issuer: CN=ecc-3-root
+        Validity
+            Not Before: Apr 13 04:17:19 2017 GMT
+            Not After : Apr 11 04:17:19 2027 GMT
+        Subject: CN=ecc-3-ca
+        Subject Public Key Info:
+            Public Key Algorithm: id-ecPublicKey
+                Public-Key: (256 bit)
+                pub:
+                    04:9a:3c:72:c0:55:c5:61:97:d1:04:8d:44:92:31:
+                    fc:d8:92:3d:58:fa:11:af:e3:ba:b5:4a:62:00:06:
+                    0f:11:ff:c8:b6:50:12:4d:15:ed:67:6f:c8:af:6c:
+                    5e:26:8c:d4:23:fc:38:e2:9f:d6:c5:6a:4a:ac:76:
+                    a7:e2:10:f5:d9
+                ASN1 OID: prime256v1
+                NIST CURVE: P-256
+        X509v3 extensions:
+            X509v3 Subject Key Identifier: 
+                A2:7D:87:7F:41:EE:FC:77:91:7F:8C:21:EA:22:83:FA:3A:05:C0:97
+            X509v3 Authority Key Identifier: 
+                keyid:AA:4F:85:4C:EB:3E:30:B9:88:84:0F:E4:81:17:EB:51:85:38:D7:F4
+                DirName:/CN=ecc-3-root
+                serial:8F:9F:50:14:32:87:37:CD
+
+            X509v3 Basic Constraints: 
+                CA:TRUE
+            X509v3 Key Usage: 
+                Digital Signature, Non Repudiation, Certificate Sign
+            X509v3 Extended Key Usage: 
+                TLS Web Server Authentication
+    Signature Algorithm: ecdsa-with-SHA256
+         30:45:02:20:70:8c:84:94:5a:94:02:ca:00:d2:53:94:58:21:
+         aa:4c:58:2b:fa:bb:f6:89:e5:f0:06:33:97:49:02:bb:d5:a1:
+         02:21:00:83:79:23:a7:49:40:1f:17:2d:65:17:62:8e:7f:3c:
+         69:15:d7:1b:ce:e9:99:9a:e0:b4:ba:0c:c0:8b:97:05:be
+-----BEGIN CERTIFICATE-----
+MIIBsjCCAVigAwIBAgICEAAwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKZWNjLTMt
+cm9vdDAeFw0xNzA0MTMwNDE3MTlaFw0yNzA0MTEwNDE3MTlaMBMxETAPBgNVBAMM
+CGVjYy0zLWNhMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmjxywFXFYZfRBI1E
+kjH82JI9WPoRr+O6tUpiAAYPEf/ItlASTRXtZ2/Ir2xeJozUI/w44p/WxWpKrHan
+4hD12aOBmTCBljAdBgNVHQ4EFgQUon2Hf0Hu/HeRf4wh6iKD+joFwJcwRQYDVR0j
+BD4wPIAUqk+FTOs+MLmIhA/kgRfrUYU41/ShGaQXMBUxEzARBgNVBAMMCmVjYy0z
+LXJvb3SCCQCPn1AUMoc3zTAMBgNVHRMEBTADAQH/MAsGA1UdDwQEAwICxDATBgNV
+HSUEDDAKBggrBgEFBQcDATAKBggqhkjOPQQDAgNIADBFAiBwjISUWpQCygDSU5RY
+IapMWCv6u/aJ5fAGM5dJArvVoQIhAIN5I6dJQB8XLWUXYo5/PGkV1xvO6Zma4LS6
+DMCLlwW+
+-----END CERTIFICATE-----
