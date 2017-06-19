@@ -79,6 +79,9 @@ UNKNOWN=0
 
 run_nginx() {
     # valgrind --leak-check=full
+    echo ${NGINX_BIN} -p ${WN_PATH} \
+        -g "error_log ${WN_ERROR_LOG} debug;" \
+        ${NGINX_OPTS}
     ${NGINX_BIN} -p ${WN_PATH} \
         -g "error_log ${WN_ERROR_LOG} debug;" \
         ${NGINX_OPTS}
@@ -359,7 +362,7 @@ echo '#'
 PORT=11471
 echo "# Port: $PORT"
 OPTS=
-EXPECT=("err = -360")
+EXPECT=("err" "360")
 stapling_test
 stapling_test
 # Good certificate - response file
@@ -380,7 +383,7 @@ echo '#'
 PORT=11473
 echo "# Port: $PORT"
 OPTS=
-EXPECT=("err = -360")
+EXPECT=("err" "360")
 stapling_test
 # No certificate for verification of OCSP response
 echo
