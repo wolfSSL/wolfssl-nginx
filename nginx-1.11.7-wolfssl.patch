@@ -152,12 +152,12 @@ diff -ur nginx-1.11.7/src/mail/ngx_mail_ssl_module.c nginx-1.11.7-wolfssl/src/ma
  
 diff -ur nginx-1.11.7/src/stream/ngx_stream_proxy_module.c nginx-1.11.7-wolfssl/src/stream/ngx_stream_proxy_module.c
 --- nginx-1.11.7/src/stream/ngx_stream_proxy_module.c	2016-12-14 01:21:25.000000000 +1000
-+++ nginx-1.11.7-wolfssl/src/stream/ngx_stream_proxy_module.c	2017-04-13 14:51:24.850777768 +1000
++++ nginx-1.11.7-wolfssl/src/stream/ngx_stream_proxy_module.c	2017-04-14 09:31:49.419667939 +1000
 @@ -1995,6 +1995,8 @@
              return NGX_ERROR;
          }
  
-+        ngx_ssl_set_verify_on(cf, plcf->ssl);
++        ngx_ssl_set_verify_on(cf, pscf->ssl);
 +
          if (ngx_ssl_trusted_certificate(cf, pscf->ssl,
                                          &pscf->ssl_trusted_certificate,
