@@ -7,6 +7,7 @@ and recompilation is required.
 
 The tested versions:
  - wolfSSL 3.11
+ - Nginx 1.13.2
  - Nginx 1.12.0
  - Nginx 1.11.13
  - Nginx 1.11.10
@@ -42,9 +43,8 @@ There will be skips of SSL tests for the following reasons:
  - no multiple certificates (ssl_certificate.t)
  - many not work, leaves coredump (ssl_engine_keys.t)
 
--There will be failures of SSL tests for the following reasons:
-- - no support for setting verification depth
-- - no support for certificate authorities in certificate request ("no trusted sent")
+No failure of SSL tests are expected.
+
 
 Note: the file ssl_ecc.t in wolfssl-nginx can be used with the Nginx test
 system.

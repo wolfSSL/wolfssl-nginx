@@ -75,7 +75,7 @@ do
         openssl req -x509 -new \
             -config $OPENSSL_CONF -subj "/CN=${NAME}/" \
             -out "./${NAME}.crt" -key "./${NAME}.key" \
-            -extensions $EXT \
+            -extensions $EXT -days 3650 \
             >/dev/null 2>&1
         RET=$?
         if [ "$RET" != "0" ]; then

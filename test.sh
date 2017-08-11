@@ -9,7 +9,7 @@ if [ "$WOLFSSL_SOURCE" = "" ]; then
 fi
 WOLFSSL_CLIENT="./examples/client/client"
 WOLFSSL_OCSP_CERTS="${WOLFSSL_SOURCE}/certs/ocsp"
-NGINX_CONF="./conf"
+NGINX_CONF="./conf/nginx.conf"
 CLIENT_TMP="/tmp/nginx_client.$$"
 SERVER_TMP="/tmp/nginx_server.$$"
 OCSP_GOOD="ocsp-good-status.der"
@@ -79,7 +79,12 @@ UNKNOWN=0
 
 run_nginx() {
     # valgrind --leak-check=full
+    echo ${NGINX_BIN} -p ${WN_PATH} \
+        -c $NGINX_CONF \
+        -g "error_log ${WN_ERROR_LOG} debug;" \
+        ${NGINX_OPTS}
     ${NGINX_BIN} -p ${WN_PATH} \
+        -c $NGINX_CONF \
         -g "error_log ${WN_ERROR_LOG} debug;" \
         ${NGINX_OPTS}
     RES=$?
@@ -152,11 +157,11 @@ client() {
     check_log
 }
 client_test() {
-    OPTS="$OPTS -r -g"
+    OPTS="$OPTS -r"
     client
 }
 stapling_test() {
-    OPTS="$OPTS -g -C -A ${WOLFSSL_OCSP_CERTS}/root-ca-cert.pem -W 1"
+    OPTS="$OPTS -C -A ${WOLFSSL_OCSP_CERTS}/root-ca-cert.pem -W 1"
     client
 }
 
@@ -232,6 +237,16 @@ PORT=11446
 echo "# Port: $PORT"
 OPTS=
 EXPECT=("SECP256R1" "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256" "HTTP/1.1 200 OK")
+client_test
+# TLS v1.3
+echo
+echo '#'
+echo '# TLS v1.3 client connecting to nginx server'
+echo '#'
+PORT=11447
+echo "# Port: $PORT"
+OPTS="-v 4"
+EXPECT=("SECP256R1" "TLS_AES_128_GCM_SHA256" "HTTP/1.1 200 OK")
 client_test
 # Session tickets file
 echo
@@ -359,7 +374,7 @@ echo '#'
 PORT=11471
 echo "# Port: $PORT"
 OPTS=
-EXPECT=("err = -360")
+EXPECT=("err" "360")
 stapling_test
 stapling_test
 # Good certificate - response file
@@ -380,7 +395,7 @@ echo '#'
 PORT=11473
 echo "# Port: $PORT"
 OPTS=
-EXPECT=("err = -360")
+EXPECT=("err" "360")
 stapling_test
 # No certificate for verification of OCSP response
 echo
