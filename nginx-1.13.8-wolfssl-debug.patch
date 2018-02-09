@@ -1,0 +1,15 @@
+diff -ur nginx-1.13.8-wolfssl/src/event/ngx_event_openssl.c nginx-1.13.8-wolfssl-debug/src/event/ngx_event_openssl.c
+--- nginx-1.13.8-wolfssl/src/event/ngx_event_openssl.c	2018-02-02 10:10:29.701973701 +1000
++++ nginx-1.13.8-wolfssl-debug/src/event/ngx_event_openssl.c	2018-02-02 10:34:24.287926076 +1000
+@@ -144,6 +144,11 @@
+ 
+ #endif
+ 
++#ifdef WOLFSSL_NGINX
++    /* Turn on internal wolfssl debugging to stdout */
++    wolfSSL_Debugging_ON();
++#endif
++
+ #if OPENSSL_VERSION_NUMBER >= 0x0090800fL
+ #ifndef SSL_OP_NO_COMPRESSION
+     {

@@ -64,7 +64,7 @@ diff -ur nginx-1.13.2/auto/options nginx-1.13.2-wolfssl/auto/options
  
 diff -ur nginx-1.13.2/src/event/ngx_event_openssl.c nginx-1.13.2-wolfssl/src/event/ngx_event_openssl.c
 --- nginx-1.13.2/src/event/ngx_event_openssl.c	2017-06-28 00:44:20.000000000 +1000
-+++ nginx-1.13.2-wolfssl/src/event/ngx_event_openssl.c	2017-06-29 10:18:05.421755825 +1000
++++ nginx-1.13.2-wolfssl/src/event/ngx_event_openssl.c	2018-02-01 09:02:23.968175319 +1000
 @@ -346,6 +346,10 @@
  
      SSL_CTX_set_info_callback(ssl->ctx, ngx_ssl_info_callback);
@@ -91,11 +91,30 @@ diff -ur nginx-1.13.2/src/event/ngx_event_openssl.c nginx-1.13.2-wolfssl/src/eve
  ngx_ssl_client_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *cert,
      ngx_int_t depth)
  {
-Only in nginx-1.13.2-wolfssl/src/event: .ngx_event_openssl.c.swp
+@@ -1090,7 +1102,8 @@
+      * maximum interoperability.
+      */
+ 
+-#if (defined SSL_CTX_set1_curves_list || defined SSL_CTRL_SET_CURVES_LIST)
++#if (defined SSL_CTX_set1_curves_list || defined SSL_CTRL_SET_CURVES_LIST) || \
++    defined(WOLFSSL_NGINX)
+ 
+     /*
+      * OpenSSL 1.0.2+ allows configuring a curve list instead of a single
 diff -ur nginx-1.13.2/src/event/ngx_event_openssl.h nginx-1.13.2-wolfssl/src/event/ngx_event_openssl.h
 --- nginx-1.13.2/src/event/ngx_event_openssl.h	2017-06-28 00:44:20.000000000 +1000
-+++ nginx-1.13.2-wolfssl/src/event/ngx_event_openssl.h	2017-06-29 10:33:37.484896533 +1000
-@@ -54,7 +54,7 @@
++++ nginx-1.13.2-wolfssl/src/event/ngx_event_openssl.h	2018-02-01 09:02:00.048075409 +1000
+@@ -12,6 +12,9 @@
+ #include <ngx_config.h>
+ #include <ngx_core.h>
+ 
++#ifdef WOLFSSL_NGINX
++#include <wolfssl/options.h>
++#endif
+ #include <openssl/ssl.h>
+ #include <openssl/err.h>
+ #include <openssl/bn.h>
+@@ -54,7 +57,7 @@
  #define ngx_ssl_conn_t          SSL
  
  
@@ -104,7 +123,7 @@ diff -ur nginx-1.13.2/src/event/ngx_event_openssl.h nginx-1.13.2-wolfssl/src/eve
  #define SSL_is_server(s)        (s)->server
  #endif
  
-@@ -153,6 +153,7 @@
+@@ -153,6 +156,7 @@
      ngx_str_t *cert, ngx_str_t *key, ngx_array_t *passwords);
  ngx_int_t ngx_ssl_ciphers(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *ciphers,
      ngx_uint_t prefer_server_ciphers);

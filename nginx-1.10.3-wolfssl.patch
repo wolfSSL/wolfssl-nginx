@@ -57,7 +57,7 @@ diff -ur nginx-1.10.3/auto/options nginx-1.10.3-wolfssl/auto/options
  
 diff -ur nginx-1.10.3/src/event/ngx_event_openssl.c nginx-1.10.3-wolfssl/src/event/ngx_event_openssl.c
 --- nginx-1.10.3/src/event/ngx_event_openssl.c	2017-02-01 01:01:11.000000000 +1000
-+++ nginx-1.10.3-wolfssl/src/event/ngx_event_openssl.c	2017-04-13 15:37:30.867368905 +1000
++++ nginx-1.10.3-wolfssl/src/event/ngx_event_openssl.c	2018-02-02 09:21:43.593980737 +1000
 @@ -55,7 +55,7 @@
      HMAC_CTX *hctx, int enc);
  #endif
@@ -101,7 +101,54 @@ diff -ur nginx-1.10.3/src/event/ngx_event_openssl.c nginx-1.10.3-wolfssl/src/eve
  
  ngx_int_t
  ngx_ssl_client_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *cert,
-@@ -2971,6 +2980,11 @@
+@@ -1019,6 +1028,38 @@
+ {
+ #if OPENSSL_VERSION_NUMBER >= 0x0090800fL
+ #ifndef OPENSSL_NO_ECDH
++#if defined(SSL_CTRL_SET_CURVES_LIST) || defined(WOLFSSL_NGINX)
++
++    /*
++     * OpenSSL 1.0.2+ allows configuring a curve list instead of a single
++     * curve previously supported.  By default an internal list is used,
++     * with prime256v1 being preferred by server in OpenSSL 1.0.2b+
++     * and X25519 in OpenSSL 1.1.0+.
++     *
++     * By default a curve preferred by the client will be used for
++     * key exchange.  The SSL_OP_CIPHER_SERVER_PREFERENCE option can
++     * be used to prefer server curves instead, similar to what it
++     * does for ciphers.
++     */
++
++    SSL_CTX_set_options(ssl->ctx, SSL_OP_SINGLE_ECDH_USE);
++
++#if SSL_CTRL_SET_ECDH_AUTO
++    /* not needed in OpenSSL 1.1.0+ */
++    SSL_CTX_set_ecdh_auto(ssl->ctx, 1);
++#endif
++
++    if (ngx_strcmp(name->data, "auto") == 0) {
++        return NGX_OK;
++    }
++
++    if (SSL_CTX_set1_curves_list(ssl->ctx, (char *) name->data) == 0) {
++        ngx_ssl_error(NGX_LOG_EMERG, ssl->log, 0,
++                      "SSL_CTX_set1_curves_list(\"%s\") failed", name->data);
++        return NGX_ERROR;
++    }
++
++#else
+     int      nid;
+     EC_KEY  *ecdh;
+ 
+@@ -1050,6 +1091,7 @@
+     EC_KEY_free(ecdh);
+ #endif
+ #endif
++#endif
+ 
+     return NGX_OK;
+ }
+@@ -2971,6 +3013,11 @@
  ngx_ssl_cleanup_ctx(void *data)
  {
      ngx_ssl_t  *ssl = data;
@@ -113,7 +160,7 @@ diff -ur nginx-1.10.3/src/event/ngx_event_openssl.c nginx-1.10.3-wolfssl/src/eve
  
      SSL_CTX_free(ssl->ctx);
  }
-@@ -2986,7 +3000,7 @@
+@@ -2986,7 +3033,7 @@
          return NGX_ERROR;
      }
  
@@ -122,7 +169,7 @@ diff -ur nginx-1.10.3/src/event/ngx_event_openssl.c nginx-1.10.3-wolfssl/src/eve
  
      /* X509_check_host() is only available in OpenSSL 1.0.2+ */
  
-@@ -3103,7 +3117,7 @@
+@@ -3103,7 +3150,7 @@
  }
  
  
@@ -133,8 +180,18 @@ diff -ur nginx-1.10.3/src/event/ngx_event_openssl.c nginx-1.10.3-wolfssl/src/eve
  ngx_ssl_check_name(ngx_str_t *name, ASN1_STRING *pattern)
 diff -ur nginx-1.10.3/src/event/ngx_event_openssl.h nginx-1.10.3-wolfssl/src/event/ngx_event_openssl.h
 --- nginx-1.10.3/src/event/ngx_event_openssl.h	2017-02-01 01:01:11.000000000 +1000
-+++ nginx-1.10.3-wolfssl/src/event/ngx_event_openssl.h	2017-04-13 15:37:15.307255249 +1000
-@@ -142,6 +142,7 @@
++++ nginx-1.10.3-wolfssl/src/event/ngx_event_openssl.h	2018-02-02 09:09:01.157341959 +1000
+@@ -12,6 +12,9 @@
+ #include <ngx_config.h>
+ #include <ngx_core.h>
+ 
++#ifdef WOLFSSL_NGINX
++#include <wolfssl/options.h>
++#endif
+ #include <openssl/ssl.h>
+ #include <openssl/err.h>
+ #include <openssl/bn.h>
+@@ -142,6 +145,7 @@
  ngx_int_t ngx_ssl_create(ngx_ssl_t *ssl, ngx_uint_t protocols, void *data);
  ngx_int_t ngx_ssl_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl,
      ngx_str_t *cert, ngx_str_t *key, ngx_array_t *passwords);
