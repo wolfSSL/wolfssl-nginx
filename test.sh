@@ -1,5 +1,7 @@
 #!/bin/bash
 
+
+
 NGINX_SRC="../nginx"
 if [ "$NGINX_BIN" = "" ]; then
     NGINX_BIN="${NGINX_SRC}/objs/nginx"
@@ -10,6 +12,7 @@ fi
 WOLFSSL_CLIENT="./examples/client/client"
 WOLFSSL_OCSP_CERTS="${WOLFSSL_SOURCE}/certs/ocsp"
 NGINX_CONF="./conf/nginx.conf"
+NGINX_TLS13_CONF="./conf/nginx_tls13.conf"
 CLIENT_TMP="/tmp/nginx_client.$$"
 SERVER_TMP="/tmp/nginx_server.$$"
 OCSP_GOOD="ocsp-good-status.der"
@@ -23,6 +26,22 @@ HOST="127.0.0.1"
 if [ "$IPV6" != "" ]; then
     HOST="::ffff:127.0.0.1"
 fi
+
+
+while [ $# -gt 0 ]
+do
+    case $1 in
+        -tls13)
+            TLS13=1
+            NGINX_CONF=$NGINX_TLS13_CONF
+            ;;
+        *)
+            echo "Unrecognized option: $1"
+            exit 1
+            ;;
+    esac
+    shift
+done
 
 
 if [ ! -f $NGINX_BIN ]; then
@@ -235,19 +254,21 @@ echo '# ECC Certificate, ECDH Key Exchange: default curve (prime256v1)'
 echo '#'
 PORT=11446
 echo "# Port: $PORT"
-OPTS=
+OPTS="-A certs/ca-ecc-cert.pem"
 EXPECT=("SECP256R1" "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256" "HTTP/1.1 200 OK")
 client_test
-# TLS v1.3
-echo
-echo '#'
-echo '# TLS v1.3 client connecting to nginx server'
-echo '#'
-PORT=11447
-echo "# Port: $PORT"
-OPTS="-v 4"
-EXPECT=("SECP256R1" "TLS_AES_128_GCM_SHA256" "HTTP/1.1 200 OK")
-client_test
+if [ "$TLS13" != "" ]; then
+  # TLS v1.3
+  echo
+  echo '#'
+  echo '# TLS v1.3 client connecting to nginx server'
+  echo '#'
+  PORT=11447
+  echo "# Port: $PORT"
+  OPTS="-v 4"
+  EXPECT=("SECP256R1" "TLS_AES_128_GCM_SHA256" "HTTP/1.1 200 OK")
+  client_test
+fi
 # Session tickets file
 echo
 echo '#'
@@ -284,7 +305,11 @@ echo '#'
 PORT=11457
 echo "# Port: $PORT"
 OPTS=
-EXPECT=("reused session id" "HTTP/1.1 200 OK")
+if [ "$TLS13" != "" ]; then
+  EXPECT=("HTTP/1.1 200 OK")
+else
+  EXPECT=("reused session id" "HTTP/1.1 200 OK")
+fi
 client_test
 
 # Proxy to localhost:11111 - DHE-RSA

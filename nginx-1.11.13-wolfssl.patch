@@ -64,7 +64,7 @@ diff -ur nginx-1.11.13/auto/options nginx-1.11.13-wolfssl/auto/options
  
 diff -ur nginx-1.11.13/src/event/ngx_event_openssl.c nginx-1.11.13-wolfssl/src/event/ngx_event_openssl.c
 --- nginx-1.11.13/src/event/ngx_event_openssl.c	2017-04-05 01:01:57.000000000 +1000
-+++ nginx-1.11.13-wolfssl/src/event/ngx_event_openssl.c	2017-04-13 15:07:53.569430271 +1000
++++ nginx-1.11.13-wolfssl/src/event/ngx_event_openssl.c	2018-02-02 09:07:36.997535505 +1000
 @@ -340,6 +340,10 @@
  
      SSL_CTX_set_info_callback(ssl->ctx, ngx_ssl_info_callback);
@@ -91,10 +91,29 @@ diff -ur nginx-1.11.13/src/event/ngx_event_openssl.c nginx-1.11.13-wolfssl/src/e
  ngx_ssl_client_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *cert,
      ngx_int_t depth)
  {
+@@ -1082,7 +1094,7 @@
+      * maximum interoperability.
+      */
+ 
+-#ifdef SSL_CTRL_SET_CURVES_LIST
++#if defined(SSL_CTRL_SET_CURVES_LIST) || defined(WOLFSSL_NGINX)
+ 
+     /*
+      * OpenSSL 1.0.2+ allows configuring a curve list instead of a single
 diff -ur nginx-1.11.13/src/event/ngx_event_openssl.h nginx-1.11.13-wolfssl/src/event/ngx_event_openssl.h
 --- nginx-1.11.13/src/event/ngx_event_openssl.h	2017-04-05 01:01:57.000000000 +1000
-+++ nginx-1.11.13-wolfssl/src/event/ngx_event_openssl.h	2017-04-13 15:08:11.385467468 +1000
-@@ -147,6 +147,7 @@
++++ nginx-1.11.13-wolfssl/src/event/ngx_event_openssl.h	2018-02-02 09:07:12.437593298 +1000
+@@ -12,6 +12,9 @@
+ #include <ngx_config.h>
+ #include <ngx_core.h>
+ 
++#ifdef WOLFSSL_NGINX
++#include <wolfssl/options.h>
++#endif
+ #include <openssl/ssl.h>
+ #include <openssl/err.h>
+ #include <openssl/bn.h>
+@@ -147,6 +150,7 @@
      ngx_str_t *cert, ngx_str_t *key, ngx_array_t *passwords);
  ngx_int_t ngx_ssl_ciphers(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *ciphers,
      ngx_uint_t prefer_server_ciphers);

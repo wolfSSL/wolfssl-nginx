@@ -1,7 +1,7 @@
-diff -ur nginx-1.11.7/auto/lib/openssl/conf nginx-1.11.7-wolfssl/auto/lib/openssl/conf
---- nginx-1.11.7/auto/lib/openssl/conf	2016-12-14 01:21:24.000000000 +1000
-+++ nginx-1.11.7-wolfssl/auto/lib/openssl/conf	2017-01-17 16:09:53.864946344 +1000
-@@ -53,8 +53,33 @@
+diff -ur nginx-1.12.2/auto/lib/openssl/conf nginx-1.12.2-wolfssl/auto/lib/openssl/conf
+--- nginx-1.12.2/auto/lib/openssl/conf	2017-10-17 23:16:37.000000000 +1000
++++ nginx-1.12.2-wolfssl/auto/lib/openssl/conf	2018-02-02 11:13:34.994958124 +1000
+@@ -61,8 +61,33 @@
          ngx_feature_path=
          ngx_feature_libs="-lssl -lcrypto $NGX_LIBDL"
          ngx_feature_test="SSL_CTX_set_options(NULL, 0)"
@@ -35,17 +35,17 @@ diff -ur nginx-1.11.7/auto/lib/openssl/conf nginx-1.11.7-wolfssl/auto/lib/openss
          if [ $ngx_found = no ]; then
  
              # FreeBSD port
-diff -ur nginx-1.11.7/auto/options nginx-1.11.7-wolfssl/auto/options
---- nginx-1.11.7/auto/options	2016-12-14 01:21:24.000000000 +1000
-+++ nginx-1.11.7-wolfssl/auto/options	2017-01-17 16:09:53.864946344 +1000
-@@ -141,6 +141,7 @@
- PCRE_CONF_OPT=
- PCRE_JIT=NO
+diff -ur nginx-1.12.2/auto/options nginx-1.12.2-wolfssl/auto/options
+--- nginx-1.12.2/auto/options	2017-10-17 23:16:37.000000000 +1000
++++ nginx-1.12.2-wolfssl/auto/options	2018-02-02 11:13:34.994958124 +1000
+@@ -143,6 +143,7 @@
  
-+WOLFSSL=NONE
  USE_OPENSSL=NO
  OPENSSL=NONE
++WOLFSSL=NONE
  
+ USE_ZLIB=NO
+ ZLIB=NONE
 @@ -345,6 +346,7 @@
          --with-pcre-opt=*)               PCRE_OPT="$value"          ;;
          --with-pcre-jit)                 PCRE_JIT=YES               ;;
@@ -54,10 +54,18 @@ diff -ur nginx-1.11.7/auto/options nginx-1.11.7-wolfssl/auto/options
          --with-openssl=*)                OPENSSL="$value"           ;;
          --with-openssl-opt=*)            OPENSSL_OPT="$value"       ;;
  
-diff -ur nginx-1.11.7/src/event/ngx_event_openssl.c nginx-1.11.7-wolfssl/src/event/ngx_event_openssl.c
---- nginx-1.11.7/src/event/ngx_event_openssl.c	2016-12-14 01:21:24.000000000 +1000
-+++ nginx-1.11.7-wolfssl/src/event/ngx_event_openssl.c	2018-02-02 14:27:14.826866032 +1000
-@@ -330,6 +330,10 @@
+@@ -563,6 +565,7 @@
+   --with-libatomic                   force libatomic_ops library usage
+   --with-libatomic=DIR               set path to libatomic_ops library sources
+ 
++  --with-wolfssl=DIR                 set path to wolfSSL headers and library
+   --with-openssl=DIR                 set path to OpenSSL library sources
+   --with-openssl-opt=OPTIONS         set additional build options for OpenSSL
+ 
+diff -ur nginx-1.12.2/src/event/ngx_event_openssl.c nginx-1.12.2-wolfssl/src/event/ngx_event_openssl.c
+--- nginx-1.12.2/src/event/ngx_event_openssl.c	2017-10-17 23:16:38.000000000 +1000
++++ nginx-1.12.2-wolfssl/src/event/ngx_event_openssl.c	2018-02-02 11:13:34.994958124 +1000
+@@ -340,6 +340,10 @@
  
      SSL_CTX_set_info_callback(ssl->ctx, ngx_ssl_info_callback);
  
@@ -68,7 +76,7 @@ diff -ur nginx-1.11.7/src/event/ngx_event_openssl.c nginx-1.11.7-wolfssl/src/eve
      return NGX_OK;
  }
  
-@@ -638,6 +642,14 @@
+@@ -648,6 +652,14 @@
  
  
  ngx_int_t
@@ -83,7 +91,7 @@ diff -ur nginx-1.11.7/src/event/ngx_event_openssl.c nginx-1.11.7-wolfssl/src/eve
  ngx_ssl_client_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *cert,
      ngx_int_t depth)
  {
-@@ -1072,7 +1084,7 @@
+@@ -1082,7 +1094,7 @@
       * maximum interoperability.
       */
  
@@ -92,29 +100,29 @@ diff -ur nginx-1.11.7/src/event/ngx_event_openssl.c nginx-1.11.7-wolfssl/src/eve
  
      /*
       * OpenSSL 1.0.2+ allows configuring a curve list instead of a single
-@@ -3019,7 +3031,8 @@
+@@ -3050,7 +3062,8 @@
              return -1;
          }
  
 -#if OPENSSL_VERSION_NUMBER >= 0x10000000L
 +#if OPENSSL_VERSION_NUMBER >= 0x10000000L && \
 +    (!defined(WOLFSSL_NGINX) || !defined(HAVE_FIPS))
-         if (HMAC_Init_ex(hctx, key[0].hmac_key, 16, digest, NULL) != 1) {
+         if (HMAC_Init_ex(hctx, key[0].hmac_key, size, digest, NULL) != 1) {
              ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "HMAC_Init_ex() failed");
              return -1;
-@@ -3054,7 +3067,8 @@
-                        ngx_hex_dump(buf, key[i].name, 16) - buf, buf,
-                        (i == 0) ? " (default)" : "");
+@@ -3094,7 +3107,8 @@
+             size = 32;
+         }
  
 -#if OPENSSL_VERSION_NUMBER >= 0x10000000L
 +#if OPENSSL_VERSION_NUMBER >= 0x10000000L && \
 +    (!defined(WOLFSSL_NGINX) || !defined(HAVE_FIPS))
-         if (HMAC_Init_ex(hctx, key[i].hmac_key, 16, digest, NULL) != 1) {
+         if (HMAC_Init_ex(hctx, key[i].hmac_key, size, digest, NULL) != 1) {
              ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "HMAC_Init_ex() failed");
              return -1;
-diff -ur nginx-1.11.7/src/event/ngx_event_openssl.h nginx-1.11.7-wolfssl/src/event/ngx_event_openssl.h
---- nginx-1.11.7/src/event/ngx_event_openssl.h	2016-12-14 01:21:24.000000000 +1000
-+++ nginx-1.11.7-wolfssl/src/event/ngx_event_openssl.h	2018-02-02 09:01:17.610518828 +1000
+diff -ur nginx-1.12.2/src/event/ngx_event_openssl.h nginx-1.12.2-wolfssl/src/event/ngx_event_openssl.h
+--- nginx-1.12.2/src/event/ngx_event_openssl.h	2017-10-17 23:16:38.000000000 +1000
++++ nginx-1.12.2-wolfssl/src/event/ngx_event_openssl.h	2018-02-02 11:13:34.994958124 +1000
 @@ -12,6 +12,9 @@
  #include <ngx_config.h>
  #include <ngx_core.h>
@@ -125,7 +133,7 @@ diff -ur nginx-1.11.7/src/event/ngx_event_openssl.h nginx-1.11.7-wolfssl/src/eve
  #include <openssl/ssl.h>
  #include <openssl/err.h>
  #include <openssl/bn.h>
-@@ -146,6 +149,7 @@
+@@ -147,6 +150,7 @@
      ngx_str_t *cert, ngx_str_t *key, ngx_array_t *passwords);
  ngx_int_t ngx_ssl_ciphers(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *ciphers,
      ngx_uint_t prefer_server_ciphers);
@@ -133,9 +141,9 @@ diff -ur nginx-1.11.7/src/event/ngx_event_openssl.h nginx-1.11.7-wolfssl/src/eve
  ngx_int_t ngx_ssl_client_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl,
      ngx_str_t *cert, ngx_int_t depth);
  ngx_int_t ngx_ssl_trusted_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl,
-diff -ur nginx-1.11.7/src/event/ngx_event_openssl_stapling.c nginx-1.11.7-wolfssl/src/event/ngx_event_openssl_stapling.c
---- nginx-1.11.7/src/event/ngx_event_openssl_stapling.c	2016-12-14 01:21:24.000000000 +1000
-+++ nginx-1.11.7-wolfssl/src/event/ngx_event_openssl_stapling.c	2017-01-17 16:09:53.864946344 +1000
+diff -ur nginx-1.12.2/src/event/ngx_event_openssl_stapling.c nginx-1.12.2-wolfssl/src/event/ngx_event_openssl_stapling.c
+--- nginx-1.12.2/src/event/ngx_event_openssl_stapling.c	2017-10-17 23:16:38.000000000 +1000
++++ nginx-1.12.2-wolfssl/src/event/ngx_event_openssl_stapling.c	2018-02-02 11:13:34.994958124 +1000
 @@ -313,7 +313,9 @@
      for (i = 0; i < n; i++) {
          issuer = sk_X509_value(chain, i);
@@ -147,10 +155,10 @@ diff -ur nginx-1.11.7/src/event/ngx_event_openssl_stapling.c nginx-1.11.7-wolfss
              X509_up_ref(issuer);
  #else
              CRYPTO_add(&issuer->references, 1, CRYPTO_LOCK_X509);
-diff -ur nginx-1.11.7/src/http/modules/ngx_http_proxy_module.c nginx-1.11.7-wolfssl/src/http/modules/ngx_http_proxy_module.c
---- nginx-1.11.7/src/http/modules/ngx_http_proxy_module.c	2016-12-14 01:21:24.000000000 +1000
-+++ nginx-1.11.7-wolfssl/src/http/modules/ngx_http_proxy_module.c	2017-04-13 14:48:59.546269024 +1000
-@@ -4359,6 +4359,8 @@
+diff -ur nginx-1.12.2/src/http/modules/ngx_http_proxy_module.c nginx-1.12.2-wolfssl/src/http/modules/ngx_http_proxy_module.c
+--- nginx-1.12.2/src/http/modules/ngx_http_proxy_module.c	2017-10-17 23:16:38.000000000 +1000
++++ nginx-1.12.2-wolfssl/src/http/modules/ngx_http_proxy_module.c	2018-02-02 11:13:34.994958124 +1000
+@@ -4371,6 +4371,8 @@
              return NGX_ERROR;
          }
  
@@ -159,9 +167,9 @@ diff -ur nginx-1.11.7/src/http/modules/ngx_http_proxy_module.c nginx-1.11.7-wolf
          if (ngx_ssl_trusted_certificate(cf, plcf->upstream.ssl,
                                          &plcf->ssl_trusted_certificate,
                                          plcf->ssl_verify_depth)
-diff -ur nginx-1.11.7/src/http/modules/ngx_http_ssl_module.c nginx-1.11.7-wolfssl/src/http/modules/ngx_http_ssl_module.c
---- nginx-1.11.7/src/http/modules/ngx_http_ssl_module.c	2016-12-14 01:21:24.000000000 +1000
-+++ nginx-1.11.7-wolfssl/src/http/modules/ngx_http_ssl_module.c	2017-01-17 16:09:53.864946344 +1000
+diff -ur nginx-1.12.2/src/http/modules/ngx_http_ssl_module.c nginx-1.12.2-wolfssl/src/http/modules/ngx_http_ssl_module.c
+--- nginx-1.12.2/src/http/modules/ngx_http_ssl_module.c	2017-10-17 23:16:38.000000000 +1000
++++ nginx-1.12.2-wolfssl/src/http/modules/ngx_http_ssl_module.c	2018-02-02 11:13:34.994958124 +1000
 @@ -14,7 +14,11 @@
      ngx_pool_t *pool, ngx_str_t *s);
  
@@ -174,9 +182,9 @@ diff -ur nginx-1.11.7/src/http/modules/ngx_http_ssl_module.c nginx-1.11.7-wolfss
  #define NGX_DEFAULT_ECDH_CURVE  "auto"
  
  #define NGX_HTTP_NPN_ADVERTISE  "\x08http/1.1"
-diff -ur nginx-1.11.7/src/mail/ngx_mail_ssl_module.c nginx-1.11.7-wolfssl/src/mail/ngx_mail_ssl_module.c
---- nginx-1.11.7/src/mail/ngx_mail_ssl_module.c	2016-12-14 01:21:25.000000000 +1000
-+++ nginx-1.11.7-wolfssl/src/mail/ngx_mail_ssl_module.c	2017-01-17 16:09:53.864946344 +1000
+diff -ur nginx-1.12.2/src/mail/ngx_mail_ssl_module.c nginx-1.12.2-wolfssl/src/mail/ngx_mail_ssl_module.c
+--- nginx-1.12.2/src/mail/ngx_mail_ssl_module.c	2017-10-17 23:16:38.000000000 +1000
++++ nginx-1.12.2-wolfssl/src/mail/ngx_mail_ssl_module.c	2018-02-02 11:13:34.998958139 +1000
 @@ -10,7 +10,11 @@
  #include <ngx_mail.h>
  
@@ -189,10 +197,10 @@ diff -ur nginx-1.11.7/src/mail/ngx_mail_ssl_module.c nginx-1.11.7-wolfssl/src/ma
  #define NGX_DEFAULT_ECDH_CURVE  "auto"
  
  
-diff -ur nginx-1.11.7/src/stream/ngx_stream_proxy_module.c nginx-1.11.7-wolfssl/src/stream/ngx_stream_proxy_module.c
---- nginx-1.11.7/src/stream/ngx_stream_proxy_module.c	2016-12-14 01:21:25.000000000 +1000
-+++ nginx-1.11.7-wolfssl/src/stream/ngx_stream_proxy_module.c	2017-04-14 09:31:49.419667939 +1000
-@@ -1995,6 +1995,8 @@
+diff -ur nginx-1.12.2/src/stream/ngx_stream_proxy_module.c nginx-1.12.2-wolfssl/src/stream/ngx_stream_proxy_module.c
+--- nginx-1.12.2/src/stream/ngx_stream_proxy_module.c	2017-10-17 23:16:39.000000000 +1000
++++ nginx-1.12.2-wolfssl/src/stream/ngx_stream_proxy_module.c	2018-02-02 11:13:34.998958139 +1000
+@@ -2005,6 +2005,8 @@
              return NGX_ERROR;
          }
  
@@ -201,9 +209,9 @@ diff -ur nginx-1.11.7/src/stream/ngx_stream_proxy_module.c nginx-1.11.7-wolfssl/
          if (ngx_ssl_trusted_certificate(cf, pscf->ssl,
                                          &pscf->ssl_trusted_certificate,
                                          pscf->ssl_verify_depth)
-diff -ur nginx-1.11.7/src/stream/ngx_stream_ssl_module.c nginx-1.11.7-wolfssl/src/stream/ngx_stream_ssl_module.c
---- nginx-1.11.7/src/stream/ngx_stream_ssl_module.c	2016-12-14 01:21:25.000000000 +1000
-+++ nginx-1.11.7-wolfssl/src/stream/ngx_stream_ssl_module.c	2017-01-17 16:09:53.864946344 +1000
+diff -ur nginx-1.12.2/src/stream/ngx_stream_ssl_module.c nginx-1.12.2-wolfssl/src/stream/ngx_stream_ssl_module.c
+--- nginx-1.12.2/src/stream/ngx_stream_ssl_module.c	2017-10-17 23:16:39.000000000 +1000
++++ nginx-1.12.2-wolfssl/src/stream/ngx_stream_ssl_module.c	2018-02-02 11:13:34.998958139 +1000
 @@ -14,7 +14,11 @@
      ngx_pool_t *pool, ngx_str_t *s);
  

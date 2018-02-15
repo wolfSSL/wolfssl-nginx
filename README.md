@@ -6,8 +6,12 @@ wolfSSL is supported in Nginx. There are minor changes to the Nginx code base
 and recompilation is required.
 
 The tested versions:
- - wolfSSL 3.11
+ - wolfSSL 3.14
+ - Nginx 1.13.8
  - Nginx 1.13.2
+ - Nginx 1.13.0
+ - Nginx 1.12.2
+ - Nginx 1.12.1
  - Nginx 1.12.0
  - Nginx 1.11.13
  - Nginx 1.11.10

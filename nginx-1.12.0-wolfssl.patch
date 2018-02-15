@@ -64,7 +64,7 @@ diff -ur nginx-1.12.0/auto/options nginx-1.12.0-wolfssl/auto/options
  
 diff -ur nginx-1.12.0/src/event/ngx_event_openssl.c nginx-1.12.0-wolfssl/src/event/ngx_event_openssl.c
 --- nginx-1.12.0/src/event/ngx_event_openssl.c	2017-04-13 00:46:01.000000000 +1000
-+++ nginx-1.12.0-wolfssl/src/event/ngx_event_openssl.c	2017-04-13 15:05:43.741185370 +1000
++++ nginx-1.12.0-wolfssl/src/event/ngx_event_openssl.c	2018-02-02 11:04:48.653303612 +1000
 @@ -340,6 +340,10 @@
  
      SSL_CTX_set_info_callback(ssl->ctx, ngx_ssl_info_callback);
@@ -91,10 +91,49 @@ diff -ur nginx-1.12.0/src/event/ngx_event_openssl.c nginx-1.12.0-wolfssl/src/eve
  ngx_ssl_client_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *cert,
      ngx_int_t depth)
  {
+@@ -1082,7 +1094,7 @@
+      * maximum interoperability.
+      */
+ 
+-#ifdef SSL_CTRL_SET_CURVES_LIST
++#if defined(SSL_CTRL_SET_CURVES_LIST) || defined(WOLFSSL_NGINX)
+ 
+     /*
+      * OpenSSL 1.0.2+ allows configuring a curve list instead of a single
+@@ -3050,7 +3062,8 @@
+             return -1;
+         }
+ 
+-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
++#if OPENSSL_VERSION_NUMBER >= 0x10000000L && \
++    (!defined(WOLFSSL_NGINX) || !defined(HAVE_FIPS))
+         if (HMAC_Init_ex(hctx, key[0].hmac_key, size, digest, NULL) != 1) {
+             ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "HMAC_Init_ex() failed");
+             return -1;
+@@ -3094,7 +3107,8 @@
+             size = 32;
+         }
+ 
+-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
++#if OPENSSL_VERSION_NUMBER >= 0x10000000L && \
++    (!defined(WOLFSSL_NGINX) || !defined(HAVE_FIPS))
+         if (HMAC_Init_ex(hctx, key[i].hmac_key, size, digest, NULL) != 1) {
+             ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "HMAC_Init_ex() failed");
+             return -1;
 diff -ur nginx-1.12.0/src/event/ngx_event_openssl.h nginx-1.12.0-wolfssl/src/event/ngx_event_openssl.h
 --- nginx-1.12.0/src/event/ngx_event_openssl.h	2017-04-13 00:46:01.000000000 +1000
-+++ nginx-1.12.0-wolfssl/src/event/ngx_event_openssl.h	2017-04-13 15:06:02.777218149 +1000
-@@ -147,6 +147,7 @@
++++ nginx-1.12.0-wolfssl/src/event/ngx_event_openssl.h	2018-02-02 08:50:02.145284612 +1000
+@@ -12,6 +12,9 @@
+ #include <ngx_config.h>
+ #include <ngx_core.h>
+ 
++#ifdef WOLFSSL_NGINX
++#include <wolfssl/options.h>
++#endif
+ #include <openssl/ssl.h>
+ #include <openssl/err.h>
+ #include <openssl/bn.h>
+@@ -147,6 +150,7 @@
      ngx_str_t *cert, ngx_str_t *key, ngx_array_t *passwords);
  ngx_int_t ngx_ssl_ciphers(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *ciphers,
      ngx_uint_t prefer_server_ciphers);
