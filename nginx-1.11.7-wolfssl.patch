@@ -1,7 +1,32 @@
 diff -ur nginx-1.11.7/auto/lib/openssl/conf nginx-1.11.7-wolfssl/auto/lib/openssl/conf
 --- nginx-1.11.7/auto/lib/openssl/conf	2016-12-14 01:21:24.000000000 +1000
-+++ nginx-1.11.7-wolfssl/auto/lib/openssl/conf	2017-01-17 16:09:53.864946344 +1000
-@@ -53,8 +53,33 @@
++++ nginx-1.11.7-wolfssl/auto/lib/openssl/conf	2018-03-15 10:41:46.330586503 +1000
+@@ -15,8 +15,16 @@
+ 
+             CORE_INCS="$CORE_INCS $OPENSSL/openssl/include"
+             CORE_DEPS="$CORE_DEPS $OPENSSL/openssl/include/openssl/ssl.h"
+-            CORE_LIBS="$CORE_LIBS $OPENSSL/openssl/lib/ssleay32.lib"
+-            CORE_LIBS="$CORE_LIBS $OPENSSL/openssl/lib/libeay32.lib"
++
++            if [ -f $OPENSSL/ms/do_ms.bat ]; then
++                # before OpenSSL 1.1.0
++                CORE_LIBS="$CORE_LIBS $OPENSSL/openssl/lib/ssleay32.lib"
++                CORE_LIBS="$CORE_LIBS $OPENSSL/openssl/lib/libeay32.lib"
++            else
++                # OpenSSL 1.1.0+
++                CORE_LIBS="$CORE_LIBS $OPENSSL/openssl/lib/libssl.lib"
++                CORE_LIBS="$CORE_LIBS $OPENSSL/openssl/lib/libcrypto.lib"
++            fi
+ 
+             # libeay32.lib requires gdi32.lib
+             CORE_LIBS="$CORE_LIBS gdi32.lib"
+@@ -49,12 +57,38 @@
+         ngx_feature="OpenSSL library"
+         ngx_feature_name="NGX_OPENSSL"
+         ngx_feature_run=no
+-        ngx_feature_incs="#include <openssl/ssl.h>"
++        ngx_feature_incs="#include <options.h>
++                          #include <openssl/ssl.h>"
          ngx_feature_path=
          ngx_feature_libs="-lssl -lcrypto $NGX_LIBDL"
          ngx_feature_test="SSL_CTX_set_options(NULL, 0)"
@@ -11,9 +36,9 @@ diff -ur nginx-1.11.7/auto/lib/openssl/conf nginx-1.11.7-wolfssl/auto/lib/openss
 +            ngx_feature_path="$WOLFSSL/include/wolfssl"
 +
 +            if [ $NGX_RPATH = YES ]; then
-+                ngx_feature_libs="-R$WOLFSSL/lib -L$WOLFSSL/lib -lwolfssl $NGX_LIBDL"
++                ngx_feature_libs="-R$WOLFSSL/lib -L$WOLFSSL/lib -lwolfssl -lm $NGX_LIBDL"
 +            else
-+                ngx_feature_libs="-L$WOLFSSL/lib -lwolfssl $NGX_LIBDL"
++                ngx_feature_libs="-L$WOLFSSL/lib -lwolfssl -lm $NGX_LIBDL"
 +            fi
 +
 +            CORE_INCS="$CORE_INCS $WOLFSSL/include/wolfssl"

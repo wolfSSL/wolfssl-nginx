@@ -1,3 +1,28 @@
+diff -ur nginx-1.13.8-wolfssl/auto/lib/openssl/conf nginx-1.13.8-wolfssl-debug/auto/lib/openssl/conf
+--- nginx-1.13.8-wolfssl/auto/lib/openssl/conf	2018-03-15 09:14:09.334704822 +1000
++++ nginx-1.13.8-wolfssl-debug/auto/lib/openssl/conf	2018-02-02 10:33:24.803654613 +1000
+@@ -57,8 +57,7 @@
+         ngx_feature="OpenSSL library"
+         ngx_feature_name="NGX_OPENSSL"
+         ngx_feature_run=no
+-        ngx_feature_incs="#include <options.h>
+-                          #include <openssl/ssl.h>"
++        ngx_feature_incs="#include <openssl/ssl.h>"
+         ngx_feature_path=
+         ngx_feature_libs="-lssl -lcrypto $NGX_LIBDL"
+         ngx_feature_test="SSL_CTX_set_options(NULL, 0)"
+@@ -68,9 +67,9 @@
+             ngx_feature_path="$WOLFSSL/include/wolfssl"
+ 
+             if [ $NGX_RPATH = YES ]; then
+-                ngx_feature_libs="-R$WOLFSSL/lib -L$WOLFSSL/lib -lwolfssl -lm $NGX_LIBDL"
++                ngx_feature_libs="-R$WOLFSSL/lib -L$WOLFSSL/lib -lwolfssl $NGX_LIBDL"
+             else
+-                ngx_feature_libs="-L$WOLFSSL/lib -lwolfssl -lm $NGX_LIBDL"
++                ngx_feature_libs="-L$WOLFSSL/lib -lwolfssl $NGX_LIBDL"
+             fi
+ 
+             CORE_INCS="$CORE_INCS $WOLFSSL/include/wolfssl"
 diff -ur nginx-1.13.8-wolfssl/src/event/ngx_event_openssl.c nginx-1.13.8-wolfssl-debug/src/event/ngx_event_openssl.c
 --- nginx-1.13.8-wolfssl/src/event/ngx_event_openssl.c	2018-02-02 10:10:29.701973701 +1000
 +++ nginx-1.13.8-wolfssl-debug/src/event/ngx_event_openssl.c	2018-02-02 10:34:24.287926076 +1000

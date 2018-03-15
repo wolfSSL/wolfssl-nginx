@@ -1,6 +1,6 @@
 diff -ur nginx-1.11.13-wolfssl/src/event/ngx_event_openssl.c nginx-1.11.13-wolfssl-debug/src/event/ngx_event_openssl.c
---- nginx-1.11.13-wolfssl/src/event/ngx_event_openssl.c	2018-02-02 09:07:36.997535505 +1000
-+++ nginx-1.11.13-wolfssl-debug/src/event/ngx_event_openssl.c	2018-02-02 09:07:52.965498263 +1000
+--- nginx-1.11.13-wolfssl/src/event/ngx_event_openssl.c	2018-02-02 14:27:02.018793321 +1000
++++ nginx-1.11.13-wolfssl-debug/src/event/ngx_event_openssl.c	2018-02-02 14:27:53.627085910 +1000
 @@ -144,6 +144,11 @@
  
  #endif
