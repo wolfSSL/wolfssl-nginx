@@ -184,15 +184,24 @@ stapling_test() {
     client
 }
 
+WOLFSSL_OCSP_INDEX=${WOLFSSL_OCSP_CERTS}/index-intermediate1-ca-issued-certs.txt
+if [ ! -f ${WOLFSSL_OCSP_INDEX} ]; then
+    WOLFSSL_OCSP_INDEX=${WOLFSSL_OCSP_CERTS}/index1.txt
+fi
+WOLFSSL_OCSP_RSIGNER=${WOLFSSL_OCSP_CERTS}/ocsp-responder-cert.pem
+WOLFSSL_OCSP_RKEY=${WOLFSSL_OCSP_CERTS}/ocsp-responder-key.pem
+WOLFSSL_OCSP_CA=${WOLFSSL_OCSP_CERTS}/intermediate1-ca-cert.pem
+WOLFSSL_OCSP_CERT1=${WOLFSSL_OCSP_CERTS}/server1-cert.pem
+WOLFSSL_OCSP_CERT2=${WOLFSSL_OCSP_CERTS}/server2-cert.pem
 # Start the OSCP responder and generate the response files
-${OPENSSL} ocsp -port 22221 -nmin ${VALID_MIN} -index ${WOLFSSL_OCSP_CERTS}/index1.txt -rsigner ${WOLFSSL_OCSP_CERTS}/ocsp-responder-cert.pem -rkey ${WOLFSSL_OCSP_CERTS}/ocsp-responder-key.pem -CA ${WOLFSSL_OCSP_CERTS}/intermediate1-ca-cert.pem >/dev/null 2>&1 &
+${OPENSSL} ocsp -port 22221 -nmin ${VALID_MIN} -index ${WOLFSSL_OCSP_INDEX} -rsigner ${WOLFSSL_OCSP_RSIGNER} -rkey ${WOLFSSL_OCSP_RKEY} -CA ${WOLFSSL_OCSP_CA} >/dev/null 2>&1 &
 OCSP_PID=$!
 
 # Generate OCSP response file that indicates certificate is good.
-${OPENSSL} ocsp -issuer ${WOLFSSL_OCSP_CERTS}/intermediate1-ca-cert.pem -cert ${WOLFSSL_OCSP_CERTS}/server1-cert.pem -url http://localhost:22221 -resp_text -respout ${WN_OCSP_GOOD} -no_nonce >/dev/null 2>&1
+${OPENSSL} ocsp -issuer ${WOLFSSL_OCSP_CA} -cert ${WOLFSSL_OCSP_CERT1} -url http://localhost:22221 -resp_text -respout ${WN_OCSP_GOOD} -no_nonce >/dev/null 2>&1
 
 # Generate OCSP response file that indicates certificate is revoked.
-${OPENSSL} ocsp -issuer ${WOLFSSL_OCSP_CERTS}/intermediate1-ca-cert.pem -cert ${WOLFSSL_OCSP_CERTS}/server2-cert.pem -url http://localhost:22221 -resp_text -respout ${WN_OCSP_BAD} -no_nonce >/dev/null 2>&1
+${OPENSSL} ocsp -issuer ${WOLFSSL_OCSP_CA} -cert ${WOLFSSL_OCSP_CERT2} -url http://localhost:22221 -resp_text -respout ${WN_OCSP_BAD} -no_nonce >/dev/null 2>&1
 
 if [ ! -f $WN_OCSP_GOOD ]; then
     echo "Could not find OCSP output file: ${WN_OCSP_GOOD}"

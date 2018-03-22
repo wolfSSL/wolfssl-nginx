@@ -1,40 +1,3 @@
-diff -ur nginx-1.13.0-wolfssl/auto/lib/openssl/conf nginx-1.13.0-wolfssl-debug/auto/lib/openssl/conf
---- nginx-1.13.0-wolfssl/auto/lib/openssl/conf	2018-02-01 08:37:32.565863658 +1000
-+++ nginx-1.13.0-wolfssl-debug/auto/lib/openssl/conf	2018-02-01 08:36:08.797416011 +1000
-@@ -61,33 +61,8 @@
-         ngx_feature_path=
-         ngx_feature_libs="-lssl -lcrypto $NGX_LIBDL"
-         ngx_feature_test="SSL_CTX_set_options(NULL, 0)"
--
--        if [ $WOLFSSL != NONE ]; then
--            ngx_feature="wolfSSL library in $WOLFSSL"
--            ngx_feature_path="$WOLFSSL/include/wolfssl"
--
--            if [ $NGX_RPATH = YES ]; then
--                ngx_feature_libs="-R$WOLFSSL/lib -L$WOLFSSL/lib -lwolfssl $NGX_LIBDL"
--            else
--                ngx_feature_libs="-L$WOLFSSL/lib -lwolfssl $NGX_LIBDL"
--            fi
--
--            CORE_INCS="$CORE_INCS $WOLFSSL/include/wolfssl"
--            CFLAGS="$CFLAGS -DWOLFSSL_NGINX"
--        fi
--
-         . auto/feature
- 
--        if [ $WOLFSSL != NONE -a $ngx_found = no ]; then
--cat << END
--
--$0: error: Could not find wolfSSL at $WOLFSSL/include/wolfssl.
--SSL modules require the wolfSSL library.
--
--END
--            exit 1
--        fi
--
-         if [ $ngx_found = no ]; then
- 
-             # FreeBSD port
 diff -ur nginx-1.13.0-wolfssl/auto/options nginx-1.13.0-wolfssl-debug/auto/options
 --- nginx-1.13.0-wolfssl/auto/options	2018-02-01 08:37:32.565863658 +1000
 +++ nginx-1.13.0-wolfssl-debug/auto/options	2018-02-01 08:36:08.797416011 +1000
@@ -63,8 +26,8 @@ diff -ur nginx-1.13.0-wolfssl/auto/options nginx-1.13.0-wolfssl-debug/auto/optio
    --with-openssl-opt=OPTIONS         set additional build options for OpenSSL
  
 diff -ur nginx-1.13.0-wolfssl/src/event/ngx_event_openssl.c nginx-1.13.0-wolfssl-debug/src/event/ngx_event_openssl.c
---- nginx-1.13.0-wolfssl/src/event/ngx_event_openssl.c	2018-02-01 08:42:59.243534258 +1000
-+++ nginx-1.13.0-wolfssl-debug/src/event/ngx_event_openssl.c	2018-02-01 08:41:43.047153153 +1000
+--- nginx-1.13.0-wolfssl/src/event/ngx_event_openssl.c	2018-02-02 14:28:42.591166177 +1000
++++ nginx-1.13.0-wolfssl-debug/src/event/ngx_event_openssl.c	2018-02-02 14:29:12.030976039 +1000
 @@ -144,6 +144,11 @@
  
  #endif
