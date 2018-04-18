@@ -7,6 +7,9 @@ and recompilation is required.
 
 The tested versions:
  - wolfSSL 3.14
+ - wolfSSL 3.13.0 (with patch applied: wolfssl-3.13.0-nginx.patch)
+ - Nginx 1.14.0
+ - Nginx 1.13.12
  - Nginx 1.13.8
  - Nginx 1.13.2
  - Nginx 1.13.0
