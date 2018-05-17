@@ -1,0 +1,36 @@
+diff -ur wolfssl-3.13.0/src/ssl.c wolfssl-3.13.0-nginx/src/ssl.c
+--- wolfssl-3.13.0/src/ssl.c	2017-12-21 10:23:04.000000000 +1000
++++ wolfssl-3.13.0-nginx/src/ssl.c	2018-04-17 09:46:47.364604657 +1000
+@@ -20856,7 +20856,7 @@
+ }
+ #endif /* NO_RSA */
+ 
+-#ifdef WOLFSSL_SIGNAL
++#if defined(WOLFSSL_SIGNAL) || defined(WOLFSSL_NGINX)
+ int wolfSSL_HMAC_CTX_init(HMAC_CTX* ctx)
+ {
+     WOLFSSL_MSG("wolfSSL_HMAC_CTX_init");
+diff -ur wolfssl-3.13.0/wolfssl/openssl/hmac.h wolfssl-3.13.0-nginx/wolfssl/openssl/hmac.h
+--- wolfssl-3.13.0/wolfssl/openssl/hmac.h	2017-12-21 10:23:04.000000000 +1000
++++ wolfssl-3.13.0-nginx/wolfssl/openssl/hmac.h	2018-04-17 09:46:47.364604657 +1000
+@@ -55,7 +55,7 @@
+     int  type;
+ } WOLFSSL_HMAC_CTX;
+ 
+-#ifdef WOLFSSL_SIGNAL
++#if defined(WOLFSSL_SIGNAL) || defined(WOLFSSL_NGINX)
+ WOLFSSL_API int wolfSSL_HMAC_CTX_init(WOLFSSL_HMAC_CTX* ctx);
+ WOLFSSL_API int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key,
+                                  int keylen, const EVP_MD* type);
+diff -ur wolfssl-3.13.0/wolfssl/openssl/ssl.h wolfssl-3.13.0-nginx/wolfssl/openssl/ssl.h
+--- wolfssl-3.13.0/wolfssl/openssl/ssl.h	2017-12-21 10:23:04.000000000 +1000
++++ wolfssl-3.13.0-nginx/wolfssl/openssl/ssl.h	2018-04-17 09:46:47.364604657 +1000
+@@ -96,6 +96,8 @@
+ #define CRYPTO_free   XFREE
+ #define CRYPTO_malloc XMALLOC
+ 
++#define STACK_OF(x) WOLFSSL_STACK
++
+ #define SSL_get_client_random(ssl,out,outSz) \
+                                   wolfSSL_get_client_random((ssl),(out),(outSz))
+ #define SSL_get_cipher_list(ctx,i)         wolfSSL_get_cipher_list_ex((ctx),(i))
