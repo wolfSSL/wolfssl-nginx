@@ -14,7 +14,7 @@ diff -ur nginx-1.13.8/auto/lib/openssl/conf nginx-1.13.8-wolfssl/auto/lib/openss
 +
 +        if [ $WOLFSSL != NONE ]; then
 +            ngx_feature="wolfSSL library in $WOLFSSL"
-+            ngx_feature_path="$WOLFSSL/include/wolfssl"
++            ngx_feature_path="$WOLFSSL/include/wolfssl $WOLFSSL/include"
 +
 +            if [ $NGX_RPATH = YES ]; then
 +                ngx_feature_libs="-R$WOLFSSL/lib -L$WOLFSSL/lib -lwolfssl -lm $NGX_LIBDL"
