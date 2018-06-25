@@ -5,42 +5,42 @@ Certificate:
     Signature Algorithm: ecdsa-with-SHA256
         Issuer: CN=ecc-3-ca
         Validity
-            Not Before: Jun 19 05:54:16 2017 GMT
-            Not After : Jun 17 05:54:16 2027 GMT
+            Not Before: Jun 25 02:11:20 2018 GMT
+            Not After : Jun 22 02:11:20 2028 GMT
         Subject: CN=ecc-3-leaf
         Subject Public Key Info:
             Public Key Algorithm: id-ecPublicKey
                 Public-Key: (256 bit)
                 pub:
-                    04:90:e4:28:ec:c1:2f:f6:39:94:ae:d8:29:d0:fe:
-                    e9:81:a3:30:7e:29:45:6b:71:af:f2:20:1e:92:1a:
-                    f0:a9:6c:bc:86:c6:d2:b8:42:1c:49:80:98:91:e4:
-                    a6:08:68:4f:7a:fd:6e:f9:dd:e8:46:6d:ca:21:06:
-                    a5:16:33:e6:19
+                    04:bd:3b:79:0a:40:63:d5:a3:e7:37:34:15:32:85:
+                    2a:bb:12:13:8e:a0:0e:db:a1:15:44:c5:3f:84:e9:
+                    73:b5:f1:a6:f1:53:54:ae:76:f4:3c:56:35:58:9d:
+                    d9:5c:7f:ce:81:ae:3e:29:3c:a3:12:f5:68:40:76:
+                    38:d7:68:f6:33
                 ASN1 OID: prime256v1
                 NIST CURVE: P-256
         X509v3 extensions:
             X509v3 Basic Constraints: 
                 CA:FALSE
             X509v3 Subject Key Identifier: 
-                E1:12:31:5D:A4:2A:C8:8D:B2:45:5B:D3:2F:28:B0:72:4E:8B:E5:07
+                51:9E:FE:D6:00:24:D0:A8:FE:24:B1:2F:AC:29:34:D5:AF:84:AF:31
             X509v3 Authority Key Identifier: 
-                keyid:56:97:4A:CA:89:49:93:EB:FA:D9:8B:27:F0:AC:3F:02:18:5B:9E:EC
+                keyid:05:87:0F:12:27:BF:76:AC:50:FC:14:82:1A:0E:3D:46:12:52:41:31
 
     Signature Algorithm: ecdsa-with-SHA256
-         30:45:02:21:00:b6:85:2c:df:3a:f1:a3:e0:1d:37:c7:d8:61:
-         6e:0c:c1:d9:8f:c6:64:ec:0b:9f:ce:84:a1:4a:cc:bd:ca:fd:
-         1d:02:20:69:74:24:e7:a4:a0:eb:0a:ea:a8:e0:f5:c1:e0:78:
-         61:de:c8:82:2e:0f:a2:09:f6:5e:69:e7:68:8e:d9:56:29
+         30:45:02:21:00:eb:ac:f4:33:27:e8:43:fc:1f:41:3b:b8:c5:
+         71:69:d6:ce:5c:6a:38:ff:58:04:6e:fe:8d:aa:a8:f7:75:5a:
+         94:02:20:0c:10:fe:72:ab:f7:b8:00:ed:de:00:05:7f:d3:9a:
+         8f:89:87:31:94:47:ba:09:5d:34:dc:00:2e:7e:80:78:9d
 -----BEGIN CERTIFICATE-----
 MIIBZTCCAQugAwIBAgICEAEwCgYIKoZIzj0EAwIwEzERMA8GA1UEAwwIZWNjLTMt
-Y2EwHhcNMTcwNjE5MDU1NDE2WhcNMjcwNjE3MDU1NDE2WjAVMRMwEQYDVQQDDApl
-Y2MtMy1sZWFmMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEkOQo7MEv9jmUrtgp
-0P7pgaMwfilFa3Gv8iAekhrwqWy8hsbSuEIcSYCYkeSmCGhPev1u+d3oRm3KIQal
-FjPmGaNNMEswCQYDVR0TBAIwADAdBgNVHQ4EFgQU4RIxXaQqyI2yRVvTLyiwck6L
-5QcwHwYDVR0jBBgwFoAUVpdKyolJk+v62Ysn8Kw/AhhbnuwwCgYIKoZIzj0EAwID
-SAAwRQIhALaFLN868aPgHTfH2GFuDMHZj8Zk7AufzoShSsy9yv0dAiBpdCTnpKDr
-Cuqo4PXB4Hhh3siCLg+iCfZeaedojtlWKQ==
+Y2EwHhcNMTgwNjI1MDIxMTIwWhcNMjgwNjIyMDIxMTIwWjAVMRMwEQYDVQQDDApl
+Y2MtMy1sZWFmMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvTt5CkBj1aPnNzQV
+MoUquxITjqAO26EVRMU/hOlztfGm8VNUrnb0PFY1WJ3ZXH/Oga4+KTyjEvVoQHY4
+12j2M6NNMEswCQYDVR0TBAIwADAdBgNVHQ4EFgQUUZ7+1gAk0Kj+JLEvrCk01a+E
+rzEwHwYDVR0jBBgwFoAUBYcPEie/dqxQ/BSCGg49RhJSQTEwCgYIKoZIzj0EAwID
+SAAwRQIhAOus9DMn6EP8H0E7uMVxadbOXGo4/1gEbv6Nqqj3dVqUAiAMEP5yq/e4
+AO3eAAV/05qPiYcxlEe6CV003AAufoB4nQ==
 -----END CERTIFICATE-----
 Certificate:
     Data:
@@ -49,27 +49,27 @@ Certificate:
     Signature Algorithm: ecdsa-with-SHA256
         Issuer: CN=ecc-3-root
         Validity
-            Not Before: Jun 19 05:54:16 2017 GMT
-            Not After : Jun 17 05:54:16 2027 GMT
+            Not Before: Jun 25 02:11:20 2018 GMT
+            Not After : Jun 22 02:11:20 2028 GMT
         Subject: CN=ecc-3-ca
         Subject Public Key Info:
             Public Key Algorithm: id-ecPublicKey
                 Public-Key: (256 bit)
                 pub:
-                    04:6a:59:73:9d:90:22:61:88:83:e7:41:0b:3e:12:
-                    42:7f:ed:e2:48:0a:c8:fd:33:c4:24:42:fe:b0:de:
-                    1c:0a:35:fa:80:13:6a:8e:17:94:48:e1:50:0c:65:
-                    88:d3:65:b4:eb:0a:ee:66:13:2b:d8:d1:21:d0:60:
-                    19:ed:15:35:a2
+                    04:9f:2b:64:2d:bc:dd:0e:3d:80:a1:90:fc:7a:d3:
+                    22:5c:06:3d:81:36:e3:ad:dd:43:f3:ab:82:f7:55:
+                    77:d2:05:93:8f:22:29:84:0a:f3:5a:2e:e2:b3:b2:
+                    c4:5d:cf:ee:c8:cd:e0:2b:f0:77:41:64:0b:c2:e4:
+                    7b:7b:c0:d7:7d
                 ASN1 OID: prime256v1
                 NIST CURVE: P-256
         X509v3 extensions:
             X509v3 Subject Key Identifier: 
-                56:97:4A:CA:89:49:93:EB:FA:D9:8B:27:F0:AC:3F:02:18:5B:9E:EC
+                05:87:0F:12:27:BF:76:AC:50:FC:14:82:1A:0E:3D:46:12:52:41:31
             X509v3 Authority Key Identifier: 
-                keyid:22:A7:EE:D4:06:BB:8C:B1:42:00:35:E3:D6:CB:FA:60:4A:63:1C:BB
+                keyid:0F:80:D3:66:B1:49:25:2C:D9:45:C3:4C:68:47:9A:12:45:E0:7B:24
                 DirName:/CN=ecc-3-root
-                serial:F7:F4:16:5B:3E:0E:9F:61
+                serial:86:3F:64:15:0F:97:5A:E8
 
             X509v3 Basic Constraints: 
                 CA:TRUE
@@ -78,19 +78,19 @@ Certificate:
             X509v3 Extended Key Usage: 
                 TLS Web Server Authentication
     Signature Algorithm: ecdsa-with-SHA256
-         30:44:02:20:41:00:84:12:c1:06:2b:de:0c:7f:64:b9:32:f2:
-         93:cb:dc:58:62:0c:69:9f:2e:8a:aa:7a:3c:ad:37:ea:3b:37:
-         02:20:79:4d:c8:9e:ee:40:fc:f9:2b:13:45:2e:e4:1d:dc:64:
-         42:b4:29:b3:12:c9:d5:79:ff:d0:13:e4:2d:86:e1:1d
+         30:44:02:20:68:ac:9a:7e:49:dc:18:5a:30:71:52:da:35:4f:
+         76:6f:91:8c:e9:fb:8c:81:32:2f:5d:76:df:8d:92:48:cd:19:
+         02:20:13:f3:b8:37:cd:7b:22:af:37:e7:92:d9:ce:43:4a:59:
+         c4:93:c1:6a:87:fb:41:ca:f8:fe:35:1f:86:42:f7:0f
 -----BEGIN CERTIFICATE-----
 MIIBsTCCAVigAwIBAgICEAAwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKZWNjLTMt
-cm9vdDAeFw0xNzA2MTkwNTU0MTZaFw0yNzA2MTcwNTU0MTZaMBMxETAPBgNVBAMM
-CGVjYy0zLWNhMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEallznZAiYYiD50EL
-PhJCf+3iSArI/TPEJEL+sN4cCjX6gBNqjheUSOFQDGWI02W06wruZhMr2NEh0GAZ
-7RU1oqOBmTCBljAdBgNVHQ4EFgQUVpdKyolJk+v62Ysn8Kw/AhhbnuwwRQYDVR0j
-BD4wPIAUIqfu1Aa7jLFCADXj1sv6YEpjHLuhGaQXMBUxEzARBgNVBAMMCmVjYy0z
-LXJvb3SCCQD39BZbPg6fYTAMBgNVHRMEBTADAQH/MAsGA1UdDwQEAwICxDATBgNV
-HSUEDDAKBggrBgEFBQcDATAKBggqhkjOPQQDAgNHADBEAiBBAIQSwQYr3gx/ZLky
-8pPL3FhiDGmfLoqqejytN+o7NwIgeU3Inu5A/PkrE0Uu5B3cZEK0KbMSydV5/9AT
-5C2G4R0=
+cm9vdDAeFw0xODA2MjUwMjExMjBaFw0yODA2MjIwMjExMjBaMBMxETAPBgNVBAMM
+CGVjYy0zLWNhMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEnytkLbzdDj2AoZD8
+etMiXAY9gTbjrd1D86uC91V30gWTjyIphArzWi7is7LEXc/uyM3gK/B3QWQLwuR7
+e8DXfaOBmTCBljAdBgNVHQ4EFgQUBYcPEie/dqxQ/BSCGg49RhJSQTEwRQYDVR0j
+BD4wPIAUD4DTZrFJJSzZRcNMaEeaEkXgeyShGaQXMBUxEzARBgNVBAMMCmVjYy0z
+LXJvb3SCCQCGP2QVD5da6DAMBgNVHRMEBTADAQH/MAsGA1UdDwQEAwICxDATBgNV
+HSUEDDAKBggrBgEFBQcDATAKBggqhkjOPQQDAgNHADBEAiBorJp+SdwYWjBxUto1
+T3ZvkYzp+4yBMi9ddt+NkkjNGQIgE/O4N817Iq8355LZzkNKWcSTwWqH+0HK+P41
+H4ZC9w8=
 -----END CERTIFICATE-----
