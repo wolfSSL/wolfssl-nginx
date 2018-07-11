@@ -46,15 +46,13 @@ To run the tests see the README. Tests are expected to pass with exceptions. An 
  1. Change into nginx-tests directory.
  2. Run tests: TEST_NGINX_BINARY=../nginx-<nginx-version>-wolfssl/objs/nginx prove .
 
-There will be skips of SSL tests for the following reasons:
- - no multiple certificates (ssl_certificate.t)
- - many not work, leaves coredump (ssl_engine_keys.t)
-
-No failure of SSL tests are expected.
-
+There will be failures of SSL tests for the following reasons:
+ - using non-default, insecure cipher suites, multiple certificate chains not supported (ssl_certificate.t)
+ - using non-default, insecure cipher suites (ssl_stapling.t)
 
 Note: the file ssl_ecc.t in wolfssl-nginx can be used with the Nginx test
 system.
+
 
 There are additional tests available in wolfssl-nginx. These are in addition
 to the Nginx tests. The OpenSSL's superapp is required for OCSP Stapling
@@ -64,4 +62,8 @@ testing. To test:
  3. When working, the number of FAIL and UNKNOWN will be 0.
 
 Testing is only supported on Linux with bash.
+
+### License
+
+This work is licensed under GPLv3; see [LICENSE](https://github.com/wolfssl/wolfssl-nginx/blob/master/LICENSE) for details.
 
