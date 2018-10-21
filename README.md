@@ -25,7 +25,9 @@ The tested versions:
 
 First you will need Nginx source package and wolfSSL source code.
 
-Now build and install wolfSSL. The default installation directory is:
+Now build and install wolfSSL.
+Please make sure to configure wolfSSL with ```./configure --enable-nginx```.
+The default installation directory is:
     /usr/local.
 
 To enable wolfSSL support in Nginx the source code must be patched:
