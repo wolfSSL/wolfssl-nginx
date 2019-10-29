@@ -124,11 +124,11 @@ diff -ur nginx/src/event/ngx_event_openssl.c nginx-1.16.1-wolfssl/src/event/ngx_
 +
 +        len = i2d_SSL_SESSION(sess, (unsigned char**) &buf);
 +        if (len <= 0) {
-+        	return -1;
++            return -1;
 +        }
 +        sess = d2i_SSL_SESSION(NULL, (const unsigned char**) &buf, len);
 +        if (!sess) {
-+        	return -1;
++            return -1;
 +        }
 +#endif
 +
