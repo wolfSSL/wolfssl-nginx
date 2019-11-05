@@ -102,13 +102,12 @@ diff -ur nginx/src/event/ngx_event_openssl.c nginx-1.16.1-wolfssl/src/event/ngx_
  
      /*
       * OpenSSL 1.0.2+ allows configuring a curve list instead of a single
-@@ -1491,10 +1504,32 @@
+@@ -1491,10 +1504,26 @@
  ngx_ssl_new_client_session(ngx_ssl_conn_t *ssl_conn, ngx_ssl_session_t *sess)
  {
      ngx_connection_t  *c;
 +#ifdef WOLFSSL_NGINX
 +    int len;
-+    unsigned char buf[NGX_SSL_MAX_SESSION_SIZE];
 +#endif
  
      c = ngx_ssl_get_connection(ssl_conn);
@@ -122,12 +121,7 @@ diff -ur nginx/src/event/ngx_event_openssl.c nginx-1.16.1-wolfssl/src/event/ngx_
 +            return -1;
 +        }
 +
-+        len = i2d_SSL_SESSION(sess, (unsigned char**) &buf);
-+        if (len <= 0) {
-+            return -1;
-+        }
-+        sess = d2i_SSL_SESSION(NULL, (const unsigned char**) &buf, len);
-+        if (!sess) {
++        if (!(sess = SSL_SESSION_dup(sess))) {
 +            return -1;
 +        }
 +#endif
@@ -135,7 +129,7 @@ diff -ur nginx/src/event/ngx_event_openssl.c nginx-1.16.1-wolfssl/src/event/ngx_
          c->ssl->session = sess;
  
          c->ssl->save_session(c);
-@@ -1566,7 +1601,9 @@
+@@ -1566,7 +1595,9 @@
  {
  #ifdef TLS1_3_VERSION
      if (c->ssl->session) {
@@ -145,7 +139,7 @@ diff -ur nginx/src/event/ngx_event_openssl.c nginx-1.16.1-wolfssl/src/event/ngx_
          return c->ssl->session;
      }
  #endif
-@@ -3929,7 +3966,8 @@
+@@ -3929,7 +3960,8 @@
              return -1;
          }
  
@@ -155,7 +149,7 @@ diff -ur nginx/src/event/ngx_event_openssl.c nginx-1.16.1-wolfssl/src/event/ngx_
          if (HMAC_Init_ex(hctx, key[0].hmac_key, size, digest, NULL) != 1) {
              ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "HMAC_Init_ex() failed");
              return -1;
-@@ -3973,7 +4011,8 @@
+@@ -3973,7 +4005,8 @@
              size = 32;
          }
  
