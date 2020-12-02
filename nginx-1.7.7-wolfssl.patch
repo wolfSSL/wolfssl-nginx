@@ -1,0 +1,255 @@
+diff --git a/auto/lib/openssl/conf b/auto/lib/openssl/conf
+index a65815f6..82c39a46 100644
+--- a/auto/lib/openssl/conf
++++ b/auto/lib/openssl/conf
+@@ -49,11 +49,38 @@ else
+         ngx_feature="OpenSSL library"
+         ngx_feature_name="NGX_OPENSSL"
+         ngx_feature_run=no
+-        ngx_feature_incs="#include <openssl/ssl.h>"
++        ngx_feature_incs="#include <options.h>
++                          #include <openssl/ssl.h>"
+         ngx_feature_path=
+         ngx_feature_libs="-lssl -lcrypto"
+         ngx_feature_test="SSL_library_init()"
++        
++        if [ $WOLFSSL != NONE ]; then
++            ngx_feature="wolfSSL library in $WOLFSSL"
++            ngx_feature_path="$WOLFSSL/include/wolfssl $WOLFSSL/include"
++
++            if [ $NGX_RPATH = YES ]; then
++                ngx_feature_libs="-R$WOLFSSL/lib -L$WOLFSSL/lib -lwolfssl -lm $NGX_LIBDL"
++            else
++                ngx_feature_libs="-L$WOLFSSL/lib -lwolfssl -lm $NGX_LIBDL"
++            fi
++
++            CORE_INCS="$CORE_INCS $WOLFSSL/include/wolfssl"
++            CFLAGS="$CFLAGS -DWOLFSSL_NGINX"
++        fi
++        
+         . auto/feature
++        
++        if [ $WOLFSSL != NONE -a $ngx_found = no ]; then
++cat << END
++
++$0: error: Could not find wolfSSL at $WOLFSSL/include/wolfssl.
++SSL modules require the wolfSSL library.
++
++END
++            exit 1
++        fi
++        
+ 
+         if [ $ngx_found = yes ]; then
+             have=NGX_SSL . auto/have
+@@ -66,10 +93,8 @@ else
+ 
+ cat << END
+ 
+-$0: error: SSL modules require the OpenSSL library.
+-You can either do not enable the modules, or install the OpenSSL library
+-into the system, or build the OpenSSL library statically from the source
+-with nginx by using --with-openssl=<path> option.
++$0: error: Could not find wolfSSL at $WOLFSSL/include/wolfssl.
++SSL modules require the wolfSSL library.
+ 
+ END
+         exit 1
+diff --git a/auto/options b/auto/options
+index 0d296ac6..7688cad7 100644
+--- a/auto/options
++++ b/auto/options
+@@ -121,6 +121,7 @@ PCRE_OPT=
+ PCRE_CONF_OPT=
+ PCRE_JIT=NO
+ 
++WOLFSSL=NONE
+ USE_OPENSSL=NO
+ OPENSSL=NONE
+ 
+@@ -292,6 +293,7 @@ use the \"--without-http_limit_conn_module\" option instead"
+         --with-pcre-opt=*)               PCRE_OPT="$value"          ;;
+         --with-pcre-jit)                 PCRE_JIT=YES               ;;
+ 
++        --with-wolfssl=*)                WOLFSSL="$value"           ;;
+         --with-openssl=*)                OPENSSL="$value"           ;;
+         --with-openssl-opt=*)            OPENSSL_OPT="$value"       ;;
+ 
+@@ -469,6 +471,7 @@ cat << END
+ 
+   --with-openssl=DIR                 set path to OpenSSL library sources
+   --with-openssl-opt=OPTIONS         set additional build options for OpenSSL
++  --with-wolfssl=DIR                 set path to wolfSSL library
+ 
+   --with-debug                       enable debug logging
+ 
+diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
+index f3456527..065ec5af 100644
+--- a/src/event/ngx_event_openssl.c
++++ b/src/event/ngx_event_openssl.c
+@@ -204,6 +204,11 @@ ngx_ssl_create(ngx_ssl_t *ssl, ngx_uint_t protocols, void *data)
+         return NGX_ERROR;
+     }
+ 
++#ifdef WOLFSSL_NGINX
++    /* nginx expects that the SSL library doesn't verify certs by default */
++    SSL_CTX_set_verify(ssl->ctx, WOLFSSL_VERIFY_NONE, NULL);
++#endif
++
+     ssl->buffer_size = NGX_SSL_BUFSIZE;
+ 
+     /* client side options */
+@@ -1096,10 +1101,13 @@ ngx_ssl_handshake(ngx_connection_t *c)
+         c->recv_chain = ngx_ssl_recv_chain;
+         c->send_chain = ngx_ssl_send_chain;
+ 
++        /* wolfSSL has renegotiation disabled by default */
++#ifndef WOLFSSL_NGINX
+         /* initial handshake done, disable renegotiation (CVE-2009-3555) */
+         if (c->ssl->connection->s3) {
+             c->ssl->connection->s3->flags |= SSL3_FLAGS_NO_RENEGOTIATE_CIPHERS;
+         }
++#endif
+ 
+         return NGX_OK;
+     }
+@@ -1844,7 +1852,9 @@ ngx_ssl_connection_error(ngx_connection_t *c, int sslerr, ngx_err_t err,
+             || n == SSL_R_ERROR_IN_RECEIVED_CIPHER_LIST              /*  151 */
+             || n == SSL_R_EXCESSIVE_MESSAGE_SIZE                     /*  152 */
+             || n == SSL_R_LENGTH_MISMATCH                            /*  159 */
++#ifndef WOLFSSL_NGINX
+             || n == SSL_R_NO_CIPHERS_PASSED                          /*  182 */
++#endif
+             || n == SSL_R_NO_CIPHERS_SPECIFIED                       /*  183 */
+             || n == SSL_R_NO_COMPRESSION_SPECIFIED                   /*  187 */
+             || n == SSL_R_NO_SHARED_CIPHER                           /*  193 */
+@@ -1869,6 +1879,7 @@ ngx_ssl_connection_error(ngx_connection_t *c, int sslerr, ngx_err_t err,
+ #ifdef SSL_R_SCSV_RECEIVED_WHEN_RENEGOTIATING
+             || n == SSL_R_SCSV_RECEIVED_WHEN_RENEGOTIATING           /*  345 */
+ #endif
++#ifndef WOLFSSL_NGINX
+             || n == 1000 /* SSL_R_SSLV3_ALERT_CLOSE_NOTIFY */
+             || n == SSL_R_SSLV3_ALERT_UNEXPECTED_MESSAGE             /* 1010 */
+             || n == SSL_R_SSLV3_ALERT_BAD_RECORD_MAC                 /* 1020 */
+@@ -1892,7 +1903,9 @@ ngx_ssl_connection_error(ngx_connection_t *c, int sslerr, ngx_err_t err,
+             || n == SSL_R_TLSV1_ALERT_INSUFFICIENT_SECURITY          /* 1071 */
+             || n == SSL_R_TLSV1_ALERT_INTERNAL_ERROR                 /* 1080 */
+             || n == SSL_R_TLSV1_ALERT_USER_CANCELLED                 /* 1090 */
+-            || n == SSL_R_TLSV1_ALERT_NO_RENEGOTIATION)              /* 1100 */
++            || n == SSL_R_TLSV1_ALERT_NO_RENEGOTIATION              /* 1100 */
++#endif
++            )
+         {
+             switch (c->log_error) {
+ 
+@@ -2798,7 +2811,7 @@ ngx_ssl_session_ticket_key_callback(ngx_ssl_conn_t *ssl_conn,
+                      ngx_ssl_session_ticket_md(), NULL);
+         ngx_memcpy(name, key[0].name, 16);
+ 
+-        return 0;
++        return 1;
+ 
+     } else {
+         /* decrypt session ticket */
+diff --git a/src/event/ngx_event_openssl.h b/src/event/ngx_event_openssl.h
+index 08eff644..e39cce3d 100644
+--- a/src/event/ngx_event_openssl.h
++++ b/src/event/ngx_event_openssl.h
+@@ -12,6 +12,9 @@
+ #include <ngx_config.h>
+ #include <ngx_core.h>
+ 
++#ifdef WOLFSSL_NGINX
++#include <wolfssl/options.h>
++#endif
+ #include <openssl/ssl.h>
+ #include <openssl/err.h>
+ #include <openssl/bn.h>
+diff --git a/src/event/ngx_event_openssl_stapling.c b/src/event/ngx_event_openssl_stapling.c
+index 2fa06730..afdbab3f 100644
+--- a/src/event/ngx_event_openssl_stapling.c
++++ b/src/event/ngx_event_openssl_stapling.c
+@@ -281,7 +281,15 @@ ngx_ssl_stapling_issuer(ngx_conf_t *cf, ngx_ssl_t *ssl)
+     for (i = 0; i < n; i++) {
+         issuer = sk_X509_value(chain, i);
+         if (X509_check_issued(issuer, cert) == X509_V_OK) {
++#ifndef WOLFSSL_NGINX
+             CRYPTO_add(&issuer->references, 1, CRYPTO_LOCK_X509);
++#else
++            if (wolfSSL_X509_up_ref(issuer) != 1) {
++                ngx_ssl_error(NGX_LOG_EMERG, ssl->log, 0,
++                              "wolfSSL_X509_up_ref() failed");
++                return NGX_ERROR;
++            }
++#endif
+ 
+             ngx_log_debug1(NGX_LOG_DEBUG_EVENT, ssl->log, 0,
+                            "SSL get issuer: found %p in extra certs", issuer);
+diff --git a/src/http/modules/ngx_http_ssl_module.c b/src/http/modules/ngx_http_ssl_module.c
+index 4c69091d..5a78efcb 100644
+--- a/src/http/modules/ngx_http_ssl_module.c
++++ b/src/http/modules/ngx_http_ssl_module.c
+@@ -14,7 +14,11 @@ typedef ngx_int_t (*ngx_ssl_variable_handler_pt)(ngx_connection_t *c,
+     ngx_pool_t *pool, ngx_str_t *s);
+ 
+ 
++#ifndef WOLFSSL_NGINX
+ #define NGX_DEFAULT_CIPHERS     "HIGH:!aNULL:!MD5"
++#else
++#define NGX_DEFAULT_CIPHERS     "ALL"
++#endif
+ #define NGX_DEFAULT_ECDH_CURVE  "prime256v1"
+ 
+ #define NGX_HTTP_NPN_ADVERTISE  "\x08http/1.1"
+diff --git a/src/http/ngx_http_upstream.c b/src/http/ngx_http_upstream.c
+index 3e8ce09e..ef80c9ba 100644
+--- a/src/http/ngx_http_upstream.c
++++ b/src/http/ngx_http_upstream.c
+@@ -1566,7 +1566,12 @@ ngx_http_upstream_ssl_name(ngx_http_request_t *r, ngx_http_upstream_t *u,
+     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                    "upstream SSL server name: \"%s\"", name.data);
+ 
+-    if (SSL_set_tlsext_host_name(c->ssl->connection, name.data) == 0) {
++#ifdef WOLFSSL_NGINX
++    if (SSL_set_tlsext_host_name(c->ssl->connection, (char *)name.data) == 0)
++#else
++    if (SSL_set_tlsext_host_name(c->ssl->connection, name.data) == 0)
++#endif
++    {
+         ngx_ssl_error(NGX_LOG_ERR, r->connection->log, 0,
+                       "SSL_set_tlsext_host_name(\"%s\") failed", name.data);
+         return NGX_ERROR;
+diff --git a/src/mail/ngx_mail_ssl_module.c b/src/mail/ngx_mail_ssl_module.c
+index f864d991..f43b1ebd 100644
+--- a/src/mail/ngx_mail_ssl_module.c
++++ b/src/mail/ngx_mail_ssl_module.c
+@@ -10,7 +10,11 @@
+ #include <ngx_mail.h>
+ 
+ 
++#ifndef WOLFSSL_NGINX
+ #define NGX_DEFAULT_CIPHERS     "HIGH:!aNULL:!MD5"
++#else
++#define NGX_DEFAULT_CIPHERS     "ALL"
++#endif
+ #define NGX_DEFAULT_ECDH_CURVE  "prime256v1"
+ 
+ 
+diff --git a/src/os/unix/ngx_user.c b/src/os/unix/ngx_user.c
+index 7a71203c..816d5216 100644
+--- a/src/os/unix/ngx_user.c
++++ b/src/os/unix/ngx_user.c
+@@ -31,8 +31,10 @@ ngx_libc_crypt(ngx_pool_t *pool, u_char *key, u_char *salt, u_char **encrypted)
+     struct crypt_data   cd;
+ 
+     cd.initialized = 0;
++#if defined(__GLIBC__) && !defined(CRYPT_DATA_INTERNAL_SIZE)
+     /* work around the glibc bug */
+     cd.current_salt[0] = ~salt[0];
++#endif
+ 
+     value = crypt_r((char *) key, (char *) salt, &cd);
+ 
+-- 
+2.25.1
+

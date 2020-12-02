@@ -1,0 +1,17 @@
+diff --git a/src/core/nginx.c b/src/core/nginx.c
+index c75ee4fd..e7b49f0b 100644
+--- a/src/core/nginx.c
++++ b/src/core/nginx.c
+@@ -206,6 +206,11 @@ main(int argc, char *const *argv)
+     ngx_cycle_t      *cycle, init_cycle;
+     ngx_core_conf_t  *ccf;
+ 
++
++#ifdef WOLFSSL_NGINX
++    (void)wolfSSL_Debugging_ON();
++#endif
++
+     ngx_debug_init();
+ 
+     if (ngx_strerror_init() != NGX_OK) {
+
