@@ -8,6 +8,9 @@ and recompilation is required.
 The tested versions:
  - wolfSSL 3.14
  - wolfSSL 3.13.0 (with patch applied: wolfssl-3.13.0-nginx.patch)
+ - Nginx 1.17.5
+ - Nginx 1.16.1
+ - Nginx 1.15.0
  - Nginx 1.14.0
  - Nginx 1.13.12
  - Nginx 1.13.8
@@ -20,6 +23,7 @@ The tested versions:
  - Nginx 1.11.10
  - Nginx 1.11.7
  - Nginx 1.10.3
+ - Nginx 1.7.7
 
 ### Building
 
@@ -54,7 +58,10 @@ There will be failures of SSL tests for the following reasons:
 
 Note: the file ssl_ecc.t in wolfssl-nginx can be used with the Nginx test
 system.
-
+Note: the file ssl_stapling.t.patch can be used to patch the ssl_stapling.t
+file in nginx-tests to work with wolfSSL. The version available in the testing
+repository uses different certs on the same server. This is not supported
+by wolfSSL so this patch moves the certs to separate server instances.
 
 There are additional tests available in wolfssl-nginx. These are in addition
 to the Nginx tests. The OpenSSL's superapp is required for OCSP Stapling

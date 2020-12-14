@@ -219,7 +219,7 @@ echo '#'
 PORT=11443
 echo "# Port: $PORT"
 OPTS=
-EXPECT=("SSL DH size is 2048 bits" "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256" "HTTP/1.1 200 OK" "resume response")
+EXPECT=("2048" "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256" "HTTP/1.1 200 OK" "resume response")
 client_test
 # Default certificate, DH, verify client
 echo

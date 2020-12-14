@@ -1,6 +1,6 @@
-diff -ur nginx-1.15.0/auto/lib/openssl/conf nginx-1.15.0-wolfssl/auto/lib/openssl/conf
---- nginx-1.15.0/auto/lib/openssl/conf	2018-06-05 23:47:25.000000000 +1000
-+++ nginx-1.15.0-wolfssl/auto/lib/openssl/conf	2018-06-14 15:44:59.055897015 +1000
+diff -ur nginx/auto/lib/openssl/conf nginx-1.16.1-wolfssl/auto/lib/openssl/conf
+--- nginx/auto/lib/openssl/conf	2019-10-28 17:04:55.111782394 +0100
++++ nginx-1.16.1-wolfssl/auto/lib/openssl/conf	2019-10-28 16:59:15.481019251 +0100
 @@ -62,8 +62,33 @@
          ngx_feature_path=
          ngx_feature_libs="-lssl -lcrypto $NGX_LIBDL $NGX_LIBPTHREAD"
@@ -35,10 +35,10 @@ diff -ur nginx-1.15.0/auto/lib/openssl/conf nginx-1.15.0-wolfssl/auto/lib/openss
          if [ $ngx_found = no ]; then
  
              # FreeBSD port
-diff -ur nginx-1.15.0/auto/options nginx-1.15.0-wolfssl/auto/options
---- nginx-1.15.0/auto/options	2018-06-05 23:47:25.000000000 +1000
-+++ nginx-1.15.0-wolfssl/auto/options	2018-06-14 15:44:59.055897015 +1000
-@@ -145,6 +145,7 @@
+diff -ur nginx/auto/options nginx-1.16.1-wolfssl/auto/options
+--- nginx/auto/options	2019-10-28 17:04:55.111782394 +0100
++++ nginx-1.16.1-wolfssl/auto/options	2019-10-28 16:59:15.485019190 +0100
+@@ -147,6 +147,7 @@
  
  USE_OPENSSL=NO
  OPENSSL=NONE
@@ -46,7 +46,7 @@ diff -ur nginx-1.15.0/auto/options nginx-1.15.0-wolfssl/auto/options
  
  USE_ZLIB=NO
  ZLIB=NONE
-@@ -349,6 +350,7 @@
+@@ -355,6 +356,7 @@
          --with-pcre-opt=*)               PCRE_OPT="$value"          ;;
          --with-pcre-jit)                 PCRE_JIT=YES               ;;
  
@@ -54,7 +54,7 @@ diff -ur nginx-1.15.0/auto/options nginx-1.15.0-wolfssl/auto/options
          --with-openssl=*)                OPENSSL="$value"           ;;
          --with-openssl-opt=*)            OPENSSL_OPT="$value"       ;;
  
-@@ -569,6 +571,7 @@
+@@ -579,6 +581,7 @@
    --with-libatomic                   force libatomic_ops library usage
    --with-libatomic=DIR               set path to libatomic_ops library sources
  
@@ -62,10 +62,11 @@ diff -ur nginx-1.15.0/auto/options nginx-1.15.0-wolfssl/auto/options
    --with-openssl=DIR                 set path to OpenSSL library sources
    --with-openssl-opt=OPTIONS         set additional build options for OpenSSL
  
-diff -ur nginx-1.15.0/src/event/ngx_event_openssl.c nginx-1.15.0-wolfssl/src/event/ngx_event_openssl.c
---- nginx-1.15.0/src/event/ngx_event_openssl.c	2018-06-05 23:47:25.000000000 +1000
-+++ nginx-1.15.0-wolfssl/src/event/ngx_event_openssl.c	2018-06-14 15:44:59.055897015 +1000
-@@ -346,6 +346,10 @@
+Only in nginx: .git
+diff -ur nginx/src/event/ngx_event_openssl.c nginx-1.16.1-wolfssl/src/event/ngx_event_openssl.c
+--- nginx/src/event/ngx_event_openssl.c	2019-10-28 17:06:07.286673633 +0100
++++ nginx-1.16.1-wolfssl/src/event/ngx_event_openssl.c	2019-10-28 16:59:15.485019190 +0100
+@@ -384,6 +384,10 @@
  
      SSL_CTX_set_info_callback(ssl->ctx, ngx_ssl_info_callback);
  
@@ -76,7 +77,7 @@ diff -ur nginx-1.15.0/src/event/ngx_event_openssl.c nginx-1.15.0-wolfssl/src/eve
      return NGX_OK;
  }
  
-@@ -654,6 +658,14 @@
+@@ -863,6 +867,14 @@
  
  
  ngx_int_t
@@ -91,7 +92,7 @@ diff -ur nginx-1.15.0/src/event/ngx_event_openssl.c nginx-1.15.0-wolfssl/src/eve
  ngx_ssl_client_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *cert,
      ngx_int_t depth)
  {
-@@ -1091,7 +1103,8 @@
+@@ -1370,7 +1382,8 @@
       * maximum interoperability.
       */
  
@@ -101,7 +102,44 @@ diff -ur nginx-1.15.0/src/event/ngx_event_openssl.c nginx-1.15.0-wolfssl/src/eve
  
      /*
       * OpenSSL 1.0.2+ allows configuring a curve list instead of a single
-@@ -3061,7 +3074,8 @@
+@@ -1491,10 +1504,26 @@
+ ngx_ssl_new_client_session(ngx_ssl_conn_t *ssl_conn, ngx_ssl_session_t *sess)
+ {
+     ngx_connection_t  *c;
++#ifdef WOLFSSL_NGINX
++    int len;
++#endif
+ 
+     c = ngx_ssl_get_connection(ssl_conn);
+ 
+     if (c->ssl->save_session) {
++#ifdef WOLFSSL_NGINX
++        len = i2d_SSL_SESSION(sess, NULL);
++
++        /* do not cache too big session */
++        if (len > NGX_SSL_MAX_SESSION_SIZE) {
++            return -1;
++        }
++
++        if (!(sess = SSL_SESSION_dup(sess))) {
++            return -1;
++        }
++#endif
++
+         c->ssl->session = sess;
+ 
+         c->ssl->save_session(c);
+@@ -1566,7 +1595,9 @@
+ {
+ #ifdef TLS1_3_VERSION
+     if (c->ssl->session) {
++    #if !defined(WOLFSSL_NGINX)
+         SSL_SESSION_up_ref(c->ssl->session);
++    #endif
+         return c->ssl->session;
+     }
+ #endif
+@@ -3929,7 +3960,8 @@
              return -1;
          }
  
@@ -111,7 +149,7 @@ diff -ur nginx-1.15.0/src/event/ngx_event_openssl.c nginx-1.15.0-wolfssl/src/eve
          if (HMAC_Init_ex(hctx, key[0].hmac_key, size, digest, NULL) != 1) {
              ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "HMAC_Init_ex() failed");
              return -1;
-@@ -3105,7 +3119,8 @@
+@@ -3973,7 +4005,8 @@
              size = 32;
          }
  
@@ -121,20 +159,21 @@ diff -ur nginx-1.15.0/src/event/ngx_event_openssl.c nginx-1.15.0-wolfssl/src/eve
          if (HMAC_Init_ex(hctx, key[i].hmac_key, size, digest, NULL) != 1) {
              ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "HMAC_Init_ex() failed");
              return -1;
-diff -ur nginx-1.15.0/src/event/ngx_event_openssl.h nginx-1.15.0-wolfssl/src/event/ngx_event_openssl.h
---- nginx-1.15.0/src/event/ngx_event_openssl.h	2018-06-05 23:47:25.000000000 +1000
-+++ nginx-1.15.0-wolfssl/src/event/ngx_event_openssl.h	2018-06-14 15:44:59.059897033 +1000
-@@ -12,6 +12,9 @@
+diff -ur nginx/src/event/ngx_event_openssl.h nginx-1.16.1-wolfssl/src/event/ngx_event_openssl.h
+--- nginx/src/event/ngx_event_openssl.h	2019-10-28 17:04:55.111782394 +0100
++++ nginx-1.16.1-wolfssl/src/event/ngx_event_openssl.h	2019-10-28 16:59:15.485019190 +0100
+@@ -12,6 +12,10 @@
  #include <ngx_config.h>
  #include <ngx_core.h>
  
 +#ifdef WOLFSSL_NGINX
 +#include <wolfssl/options.h>
++#include <openssl/pem.h>
 +#endif
  #include <openssl/ssl.h>
  #include <openssl/err.h>
  #include <openssl/bn.h>
-@@ -55,7 +58,7 @@
+@@ -59,7 +63,7 @@
  #define ngx_ssl_conn_t          SSL
  
  
@@ -143,17 +182,17 @@ diff -ur nginx-1.15.0/src/event/ngx_event_openssl.h nginx-1.15.0-wolfssl/src/eve
  #define SSL_is_server(s)        (s)->server
  #endif
  
-@@ -154,6 +157,7 @@
-     ngx_str_t *cert, ngx_str_t *key, ngx_array_t *passwords);
+@@ -171,6 +175,7 @@
+ 
  ngx_int_t ngx_ssl_ciphers(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *ciphers,
      ngx_uint_t prefer_server_ciphers);
 +ngx_int_t ngx_ssl_set_verify_on(ngx_conf_t *cf, ngx_ssl_t *ssl);
  ngx_int_t ngx_ssl_client_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl,
      ngx_str_t *cert, ngx_int_t depth);
  ngx_int_t ngx_ssl_trusted_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl,
-diff -ur nginx-1.15.0/src/event/ngx_event_openssl_stapling.c nginx-1.15.0-wolfssl/src/event/ngx_event_openssl_stapling.c
---- nginx-1.15.0/src/event/ngx_event_openssl_stapling.c	2018-06-05 23:47:25.000000000 +1000
-+++ nginx-1.15.0-wolfssl/src/event/ngx_event_openssl_stapling.c	2018-06-14 15:44:59.059897033 +1000
+diff -ur nginx/src/event/ngx_event_openssl_stapling.c nginx-1.16.1-wolfssl/src/event/ngx_event_openssl_stapling.c
+--- nginx/src/event/ngx_event_openssl_stapling.c	2019-10-28 17:04:55.111782394 +0100
++++ nginx-1.16.1-wolfssl/src/event/ngx_event_openssl_stapling.c	2019-10-28 16:59:15.485019190 +0100
 @@ -313,7 +313,9 @@
      for (i = 0; i < n; i++) {
          issuer = sk_X509_value(chain, i);
@@ -165,10 +204,10 @@ diff -ur nginx-1.15.0/src/event/ngx_event_openssl_stapling.c nginx-1.15.0-wolfss
              X509_up_ref(issuer);
  #else
              CRYPTO_add(&issuer->references, 1, CRYPTO_LOCK_X509);
-diff -ur nginx-1.15.0/src/http/modules/ngx_http_proxy_module.c nginx-1.15.0-wolfssl/src/http/modules/ngx_http_proxy_module.c
---- nginx-1.15.0/src/http/modules/ngx_http_proxy_module.c	2018-06-05 23:47:25.000000000 +1000
-+++ nginx-1.15.0-wolfssl/src/http/modules/ngx_http_proxy_module.c	2018-06-14 15:44:59.059897033 +1000
-@@ -4295,6 +4295,8 @@
+diff -ur nginx/src/http/modules/ngx_http_proxy_module.c nginx-1.16.1-wolfssl/src/http/modules/ngx_http_proxy_module.c
+--- nginx/src/http/modules/ngx_http_proxy_module.c	2019-10-28 17:04:55.111782394 +0100
++++ nginx-1.16.1-wolfssl/src/http/modules/ngx_http_proxy_module.c	2019-10-28 16:59:15.489019127 +0100
+@@ -4307,6 +4307,8 @@
              return NGX_ERROR;
          }
  
@@ -177,10 +216,9 @@ diff -ur nginx-1.15.0/src/http/modules/ngx_http_proxy_module.c nginx-1.15.0-wolf
          if (ngx_ssl_trusted_certificate(cf, plcf->upstream.ssl,
                                          &plcf->ssl_trusted_certificate,
                                          plcf->ssl_verify_depth)
-Only in nginx-1.15.0-wolfssl/src/http/modules: ngx_http_proxy_module.c.orig
-diff -ur nginx-1.15.0/src/http/modules/ngx_http_ssl_module.c nginx-1.15.0-wolfssl/src/http/modules/ngx_http_ssl_module.c
---- nginx-1.15.0/src/http/modules/ngx_http_ssl_module.c	2018-06-05 23:47:25.000000000 +1000
-+++ nginx-1.15.0-wolfssl/src/http/modules/ngx_http_ssl_module.c	2018-06-14 15:44:59.059897033 +1000
+diff -ur nginx/src/http/modules/ngx_http_ssl_module.c nginx-1.16.1-wolfssl/src/http/modules/ngx_http_ssl_module.c
+--- nginx/src/http/modules/ngx_http_ssl_module.c	2019-10-28 17:06:07.286673633 +0100
++++ nginx-1.16.1-wolfssl/src/http/modules/ngx_http_ssl_module.c	2019-10-28 16:59:15.489019127 +0100
 @@ -14,7 +14,11 @@
      ngx_pool_t *pool, ngx_str_t *s);
  
@@ -193,7 +231,7 @@ diff -ur nginx-1.15.0/src/http/modules/ngx_http_ssl_module.c nginx-1.15.0-wolfss
  #define NGX_DEFAULT_ECDH_CURVE  "auto"
  
  #define NGX_HTTP_NPN_ADVERTISE  "\x08http/1.1"
-@@ -766,8 +770,10 @@
+@@ -810,8 +814,10 @@
          return NGX_CONF_ERROR;
      }
  
@@ -204,9 +242,25 @@ diff -ur nginx-1.15.0/src/http/modules/ngx_http_ssl_module.c nginx-1.15.0-wolfss
  
      if (conf->shm_zone == NULL) {
          conf->shm_zone = prev->shm_zone;
-diff -ur nginx/src/mail/ngx_mail_ssl_module.c nginx-1.15.0-wolfssl/src/mail/ngx_mail_ssl_module.c
---- nginx/src/mail/ngx_mail_ssl_module.c	2019-10-22 13:38:25.369054696 +0200
-+++ nginx-1.15.0-wolfssl/src/mail/ngx_mail_ssl_module.c	2019-10-22 13:37:13.938265565 +0200
+diff -ur nginx/src/http/ngx_http_request.c nginx-1.16.1-wolfssl/src/http/ngx_http_request.c
+--- nginx/src/http/ngx_http_request.c	2019-10-28 17:04:55.111782394 +0100
++++ nginx-1.16.1-wolfssl/src/http/ngx_http_request.c	2019-10-28 16:59:15.485019190 +0100
+@@ -851,6 +851,12 @@
+ 
+ 
+ #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
++#ifndef SSL_AD_NO_RENEGOTIATION
++#define SSL_AD_NO_RENEGOTIATION     100
++#endif
++#ifndef SSL_AD_INTERNAL_ERROR
++#define SSL_AD_INTERNAL_ERROR       80
++#endif
+ 
+ int
+ ngx_http_ssl_servername(ngx_ssl_conn_t *ssl_conn, int *ad, void *arg)
+diff -ur nginx/src/mail/ngx_mail_ssl_module.c nginx-1.16.1-wolfssl/src/mail/ngx_mail_ssl_module.c
+--- nginx/src/mail/ngx_mail_ssl_module.c	2019-10-28 17:04:55.111782394 +0100
++++ nginx-1.16.1-wolfssl/src/mail/ngx_mail_ssl_module.c	2019-10-28 16:59:15.489019127 +0100
 @@ -10,7 +10,11 @@
  #include <ngx_mail.h>
  
@@ -219,10 +273,10 @@ diff -ur nginx/src/mail/ngx_mail_ssl_module.c nginx-1.15.0-wolfssl/src/mail/ngx_
  #define NGX_DEFAULT_ECDH_CURVE  "auto"
  
  
-diff -ur nginx-1.15.0/src/stream/ngx_stream_proxy_module.c nginx-1.15.0-wolfssl/src/stream/ngx_stream_proxy_module.c
---- nginx-1.15.0/src/stream/ngx_stream_proxy_module.c	2018-06-05 23:47:25.000000000 +1000
-+++ nginx-1.15.0-wolfssl/src/stream/ngx_stream_proxy_module.c	2018-06-14 15:44:59.059897033 +1000
-@@ -2038,6 +2038,8 @@
+diff -ur nginx/src/stream/ngx_stream_proxy_module.c nginx-1.16.1-wolfssl/src/stream/ngx_stream_proxy_module.c
+--- nginx/src/stream/ngx_stream_proxy_module.c	2019-10-28 17:04:55.111782394 +0100
++++ nginx-1.16.1-wolfssl/src/stream/ngx_stream_proxy_module.c	2019-10-28 16:59:15.493019066 +0100
+@@ -2131,6 +2131,8 @@
              return NGX_ERROR;
          }
  
@@ -231,10 +285,9 @@ diff -ur nginx-1.15.0/src/stream/ngx_stream_proxy_module.c nginx-1.15.0-wolfssl/
          if (ngx_ssl_trusted_certificate(cf, pscf->ssl,
                                          &pscf->ssl_trusted_certificate,
                                          pscf->ssl_verify_depth)
-Only in nginx-1.15.0-wolfssl/src/stream: ngx_stream_proxy_module.c.orig
-diff -ur nginx-1.15.0/src/stream/ngx_stream_ssl_module.c nginx-1.15.0-wolfssl/src/stream/ngx_stream_ssl_module.c
---- nginx-1.15.0/src/stream/ngx_stream_ssl_module.c	2018-06-05 23:47:25.000000000 +1000
-+++ nginx-1.15.0-wolfssl/src/stream/ngx_stream_ssl_module.c	2018-06-14 15:44:59.059897033 +1000
+diff -ur nginx/src/stream/ngx_stream_ssl_module.c nginx-1.16.1-wolfssl/src/stream/ngx_stream_ssl_module.c
+--- nginx/src/stream/ngx_stream_ssl_module.c	2019-10-28 17:04:55.111782394 +0100
++++ nginx-1.16.1-wolfssl/src/stream/ngx_stream_ssl_module.c	2019-10-28 16:59:15.493019066 +0100
 @@ -14,7 +14,11 @@
      ngx_pool_t *pool, ngx_str_t *s);
  
