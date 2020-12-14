@@ -58,7 +58,10 @@ There will be failures of SSL tests for the following reasons:
 
 Note: the file ssl_ecc.t in wolfssl-nginx can be used with the Nginx test
 system.
-
+Note: the file ssl_stapling.t.patch can be used to patch the ssl_stapling.t
+file in nginx-tests to work with wolfSSL. The version available in the testing
+repository uses different certs on the same server. This is not supported
+by wolfSSL so this patch moves the certs to separate server instances.
 
 There are additional tests available in wolfssl-nginx. These are in addition
 to the Nginx tests. The OpenSSL's superapp is required for OCSP Stapling

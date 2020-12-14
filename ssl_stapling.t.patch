@@ -1,0 +1,117 @@
+commit 76a0d0fe158ba0bc2d9a71ef3bd8ff52949a10a1
+Author: Juliusz Sosinowicz <juliusz@wolfssl.com>
+Date:   Thu Oct 24 11:45:49 2019 +0200
+
+    different ports for different certs
+
+diff --git a/ssl_stapling.t b/ssl_stapling.t
+index d5b8ff3..ee57012 100644
+--- a/ssl_stapling.t
++++ b/ssl_stapling.t
+@@ -53,18 +53,21 @@ http {
+     ssl_stapling on;
+     ssl_trusted_certificate trusted.crt;
+ 
+-    ssl_certificate ec-end-int.crt;
+-    ssl_certificate_key ec-end.key;
+-
+-    ssl_certificate end-int.crt;
+-    ssl_certificate_key end.key;
+-
+     ssl_ciphers DEFAULT:ECCdraft;
+ 
+     server {
+         listen       127.0.0.1:8443 ssl;
+         listen       127.0.0.1:8080;
+         server_name  localhost;
++    ssl_certificate end-int.crt;
++    ssl_certificate_key end.key;
++    }
++    server {
++        listen       127.0.0.1:8453 ssl;
++        listen       127.0.0.1:8090;
++        server_name  localhost;
++    ssl_certificate ec-end-int.crt;
++    ssl_certificate_key ec-end.key;
+     }
+ 
+     server {
+@@ -72,6 +75,17 @@ http {
+         server_name  localhost;
+ 
+         ssl_stapling_responder http://127.0.0.1:8081/;
++    ssl_certificate end-int.crt;
++    ssl_certificate_key end.key;
++    }
++
++    server {
++        listen       127.0.0.1:8454 ssl;
++        server_name  localhost;
++
++        ssl_stapling_responder http://127.0.0.1:8081/;
++    ssl_certificate ec-end-int.crt;
++    ssl_certificate_key ec-end.key;
+     }
+ 
+     server {
+@@ -79,6 +93,8 @@ http {
+         server_name  localhost;
+ 
+         ssl_stapling_verify on;
++    ssl_certificate ec-end-int.crt;
++    ssl_certificate_key ec-end.key;
+     }
+ 
+     server {
+@@ -87,6 +103,8 @@ http {
+ 
+         ssl_certificate ec-end.crt;
+         ssl_certificate_key ec-end.key;
++    ssl_certificate ec-end-int.crt;
++    ssl_certificate_key ec-end.key;
+     }
+ 
+     server {
+@@ -97,6 +115,8 @@ http {
+         ssl_certificate_key end.key;
+ 
+         ssl_stapling_file %%TESTDIR%%/resp.der;
++    ssl_certificate end-int.crt;
++    ssl_certificate_key end.key;
+     }
+ 
+     server {
+@@ -114,6 +134,8 @@ http {
+         server_name  localhost;
+ 
+         ssl_stapling_responder http://127.0.0.1:8080/;
++    ssl_certificate ec-end-int.crt;
++    ssl_certificate_key ec-end.key;
+     }
+ }
+ 
+@@ -249,9 +271,9 @@ $t->waitforsocket("127.0.0.1:" . port(8081));
+ my $version = get_version();
+ 
+ staple(8443, 'RSA');
+-staple(8443, 'ECDSA');
++staple(8453, 'ECDSA');
+ staple(8444, 'RSA');
+-staple(8444, 'ECDSA');
++staple(8454, 'ECDSA');
+ staple(8445, 'ECDSA');
+ staple(8446, 'ECDSA');
+ staple(8449, 'ECDSA');
+@@ -259,10 +281,10 @@ staple(8449, 'ECDSA');
+ sleep 1;
+ 
+ ok(!staple(8443, 'RSA'), 'staple revoked');
+-ok(staple(8443, 'ECDSA'), 'staple success');
++ok(staple(8453, 'ECDSA'), 'staple success');
+ 
+ ok(!staple(8444, 'RSA'), 'responder revoked');
+-ok(staple(8444, 'ECDSA'), 'responder success');
++ok(staple(8454, 'ECDSA'), 'responder success');
+ 
+ ok(!staple(8445, 'ECDSA'), 'verify - root not trusted');
+ 

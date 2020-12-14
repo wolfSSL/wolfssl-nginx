@@ -1,5 +1,56 @@
+From 9a58b2ddaa713b312a9d14d6dd563d1df14c8231 Mon Sep 17 00:00:00 2001
+From: Juliusz Sosinowicz <juliusz@wolfssl.com>
+Date: Tue, 1 Dec 2020 13:41:20 +0100
+Subject: [PATCH] wolfSSL Patch for Nginx 1.7.7
+
+Build instructions:
+- Build wolfSSL (run in wolfSSL directory):
+`./configure --enable-nginx`
+`make`
+`make install`
+The default installation directory is `/usr/local`.
+- Build Nginx (run in Nginx directory):
+  - Apply patch:
+`patch -p1 < nginx-1.7.7-wolfssl.patch`
+  - Compile Nginx (some warnings need to be disabled):
+`./configure --with-wolfssl=/usr/local --with-http_ssl_module --with-cc-opt='-Wimplicit-fallthrough=0 -Wno-cast-function-type'`
+`make`
+
+Port nginx 1.7.7 to wolfSSL:
+- `auto/lib/openssl/conf`: Detect wolfSSL library and setup compilation options
+- `auto/options`: Add wolfSSL configure option
+- `src/core/nginx.c`: Enable debugging if wolfSSL is compiled with `--enable-debug`
+- `src/event/ngx_event_openssl.c`:
+  - Nginx wants the SSL library to not do any certificate verification by default
+  - No need to disble renegotiation since wolfSSL has it disabled by default
+  - Fix TLS tickets callback to return correct values
+  - Ignore undefined handshake failure codes
+- `src/event/ngx_event_openssl.h`: Include wolfSSL options file
+- `src/event/ngx_event_openssl_stapling.c`: Use `wolfSSL_X509_up_ref` to increment issuer certificate reference counter
+- `src/http/modules/ngx_http_ssl_module.c`: wolfSSL "ALL" provides adequate default ciphers
+- `src/http/ngx_http_upstream.c`: Correct type mismatch
+- `src/mail/ngx_mail_ssl_module.c`: wolfSSL "ALL" provides adequate default ciphers
+- `src/os/unix/ngx_user.c`: `current_salt` not part of `struct crypt_data` in recent glibc version
+
+nginx-tests remarks:
+- All tests in nginx-tests should pass. Some tests test reusing a session but fail on my machine. Manually setting up the server and connecting through Firefox correctly re-uses the session suggesting that the issue is on the client side not the server. I assume that this is an error in my version of Perl (which is the client in the nginx-tests).
+- When running nginx-tests with TLS 1.3 then session resumption tests will fail since the tests are not configured for SSL tickets. I tested session reuse manually with Firefox and confirmed that they work.
+- nginx 1.7.7 does not do session reuse with TLS 1.3 (when acting as a proxy) because it calls SSL_get1_session too soon.
+---
+ auto/lib/openssl/conf                  | 35 ++++++++++++++++++++++----
+ auto/options                           |  3 +++
+ src/core/nginx.c                       |  5 ++++
+ src/event/ngx_event_openssl.c          | 17 +++++++++++--
+ src/event/ngx_event_openssl.h          |  3 +++
+ src/event/ngx_event_openssl_stapling.c |  8 ++++++
+ src/http/modules/ngx_http_ssl_module.c |  4 +++
+ src/http/ngx_http_upstream.c           |  7 +++++-
+ src/mail/ngx_mail_ssl_module.c         |  4 +++
+ src/os/unix/ngx_user.c                 |  2 ++
+ 10 files changed, 80 insertions(+), 8 deletions(-)
+
 diff --git a/auto/lib/openssl/conf b/auto/lib/openssl/conf
-index a65815f6..82c39a46 100644
+index a65815f6..0796e3ab 100644
 --- a/auto/lib/openssl/conf
 +++ b/auto/lib/openssl/conf
 @@ -49,11 +49,38 @@ else
@@ -23,7 +74,7 @@ index a65815f6..82c39a46 100644
 +                ngx_feature_libs="-L$WOLFSSL/lib -lwolfssl -lm $NGX_LIBDL"
 +            fi
 +
-+            CORE_INCS="$CORE_INCS $WOLFSSL/include/wolfssl"
++            CORE_INCS="$CORE_INCS $ngx_feature_path"
 +            CFLAGS="$CFLAGS -DWOLFSSL_NGINX"
 +        fi
 +        
@@ -83,6 +134,22 @@ index 0d296ac6..7688cad7 100644
  
    --with-debug                       enable debug logging
  
+diff --git a/src/core/nginx.c b/src/core/nginx.c
+index c75ee4fd..e7b49f0b 100644
+--- a/src/core/nginx.c
++++ b/src/core/nginx.c
+@@ -206,6 +206,11 @@ main(int argc, char *const *argv)
+     ngx_cycle_t      *cycle, init_cycle;
+     ngx_core_conf_t  *ccf;
+ 
++
++#ifdef WOLFSSL_NGINX
++    (void)wolfSSL_Debugging_ON();
++#endif
++
+     ngx_debug_init();
+ 
+     if (ngx_strerror_init() != NGX_OK) {
 diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
 index f3456527..065ec5af 100644
 --- a/src/event/ngx_event_openssl.c
