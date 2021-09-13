@@ -48,7 +48,7 @@ Now rebuild Nginx:
 Nginx has a repository of tests that can be obtained with the following command:
  - git clone https://github.com/nginx/nginx-tests.git
 
-To run the tests see the README. Tests are expected to pass with exceptions. An example of runnning the tests:
+To run the tests see the README. Tests are expected to pass with exceptions. An example of running the tests:
  1. Change into nginx-tests directory.
  2. Run tests: TEST_NGINX_BINARY=../nginx-<nginx-version>-wolfssl/objs/nginx prove .
 
@@ -72,7 +72,12 @@ testing. To test:
 
 Testing is only supported on Linux with bash.
 
-### License
+## Licensing
 
-This work is licensed under GPLv3; see [LICENSE](https://github.com/wolfssl/wolfssl-nginx/blob/master/LICENSE) for details.
+wolfSSL and wolfCrypt are either licensed for use under the GPLv3 (or at your option any later version) or a standard commercial license. For users who cannot use wolfSSL under GPLv3 (or any later version), a commercial license to wolfSSL and wolfCrypt is available. For license inquiries, please contact wolfSSL Inc. directly at licensing@wolfssl.com.
 
+The NGINX patches in this repository are licensed under their respective project licenses.
+
+## Support
+
+For support or build issues, please contact the wolfSSL support team at support@wolfssl.com.
