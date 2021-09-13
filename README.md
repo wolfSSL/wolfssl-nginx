@@ -48,7 +48,7 @@ Now rebuild Nginx:
 Nginx has a repository of tests that can be obtained with the following command:
  - git clone https://github.com/nginx/nginx-tests.git
 
-To run the tests see the README. Tests are expected to pass with exceptions. An example of runnning the tests:
+To run the tests see the README. Tests are expected to pass with exceptions. An example of running the tests:
  1. Change into nginx-tests directory.
  2. Run tests: TEST_NGINX_BINARY=../nginx-<nginx-version>-wolfssl/objs/nginx prove .
 
