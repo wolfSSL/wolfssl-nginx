@@ -8,6 +8,8 @@ and recompilation is required.
 The tested versions:
  - wolfSSL 3.14
  - wolfSSL 3.13.0 (with patch applied: wolfssl-3.13.0-nginx.patch)
+ - Nginx 1.21.4
+ - Nginx 1.19.6
  - Nginx 1.17.5
  - Nginx 1.16.1
  - Nginx 1.15.0
@@ -47,6 +49,19 @@ Now rebuild Nginx:
 
 Nginx has a repository of tests that can be obtained with the following command:
  - git clone https://github.com/nginx/nginx-tests.git
+
+There are patch sets available in the `nginx-tests-patches` directory for the
+nginx-tests testsuite. These patches fix issues with running the tests against
+a version of Nginx that was compiled with wolfSSL. They also add some further
+debug capabilities. The patch file names are in the structure:
+
+```
+<year>-<month>-<day>-<nginx-tests commit>.patch
+```
+
+The patch should be applied before running any tests using `patch -p1 < <path/to/patch>`.
+The date and commit hash in the file name refer to the version of nginx-tests
+that the patch was prepared for.
 
 To run the tests see the README. Tests are expected to pass with exceptions. An example of running the tests:
  1. Change into nginx-tests directory.

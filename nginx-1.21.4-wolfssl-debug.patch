@@ -1,0 +1,19 @@
+diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
+index b75cc503..7bada388 100644
+--- a/src/event/ngx_event_openssl.c
++++ b/src/event/ngx_event_openssl.c
+@@ -167,6 +167,11 @@ ngx_ssl_init(ngx_log_t *log)
+ 
+ #endif
+ 
++#ifdef WOLFSSL_NGINX
++    /* Turn on internal wolfssl debugging to stdout */
++    wolfSSL_Debugging_ON();
++#endif
++
+ #ifndef SSL_OP_NO_COMPRESSION
+     {
+     /*
+-- 
+2.25.1
+

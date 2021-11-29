@@ -1,0 +1,5744 @@
+From 1ce3bde5b578f5b81bc3ed2b9a4dc2e45d3a356b Mon Sep 17 00:00:00 2001
+From: Juliusz Sosinowicz <juliusz@wolfssl.com>
+Date: Fri, 26 Nov 2021 16:43:18 +0100
+Subject: [PATCH] Add more debugging support and fix tests for compatibility
+ with wolfSSL
+
+Tested against Nginx versions:
+- 1.21.4
+
+Changes made:
+- Show log location
+- Add gdbserver and valgrind support
+- Different ports for different certs
+  - ssl_certificates.t
+  - ssl_ocsp.t
+  - ssl_stapling.t
+- Single process for debugging support added to most tests. Some tests rely on a master and worker process structure so they are left unchanged.
+- Fix ssl_verify_depth.t test. To be able to generate intermediate certs without the keyUsage extension, wolfSSL needs to be compiled with `ALLOW_INVALID_CERTSIGN`. Otherwise such intermediate certs will be rejected.
+---
+ README                                |   8 ++
+ access.t                              |   1 +
+ access_log.t                          |   1 +
+ access_log_variables.t                |   1 +
+ addition.t                            |   1 +
+ addition_buffered.t                   |   1 +
+ auth_basic.t                          |   1 +
+ auth_delay.t                          |   1 +
+ auth_request.t                        |   1 +
+ auth_request_satisfy.t                |   1 +
+ auth_request_set.t                    |   1 +
+ autoindex.t                           |   1 +
+ autoindex_format.t                    |   1 +
+ body.t                                |   1 +
+ body_chunked.t                        |   1 +
+ charset.t                             |   1 +
+ charset_gzip_static.t                 |   1 +
+ config_dump.t                         |   1 +
+ dav.t                                 |   1 +
+ dav_chunked.t                         |   1 +
+ debug_connection.t                    |   1 +
+ debug_connection_syslog.t             |   1 +
+ debug_connection_unix.t               |   1 +
+ empty_gif.t                           |   1 +
+ error_log.t                           |   1 +
+ fastcgi.t                             |   1 +
+ fastcgi_body.t                        |   1 +
+ fastcgi_body2.t                       |   1 +
+ fastcgi_buffering.t                   |   1 +
+ fastcgi_cache.t                       |   1 +
+ fastcgi_extra_data.t                  |   1 +
+ fastcgi_header_params.t               |   1 +
+ fastcgi_keepalive.t                   |   1 +
+ fastcgi_merge_params.t                |   1 +
+ fastcgi_merge_params2.t               |   1 +
+ fastcgi_request_buffering.t           |   1 +
+ fastcgi_request_buffering_chunked.t   |   1 +
+ fastcgi_split.t                       |   1 +
+ fastcgi_unix.t                        |   1 +
+ fastcgi_variables.t                   |   1 +
+ geo.t                                 |   1 +
+ geo_binary.t                          |   1 +
+ geo_ipv6.t                            |   1 +
+ geo_unix.t                            |   1 +
+ geoip.t                               |   1 +
+ grpc.t                                |   1 +
+ grpc_next_upstream.t                  |   1 +
+ grpc_pass.t                           |   1 +
+ grpc_request_buffering.t              |   1 +
+ grpc_ssl.t                            |   1 +
+ gunzip.t                              |   1 +
+ gunzip_memcached.t                    |   1 +
+ gunzip_perl.t                         |   1 +
+ gunzip_ssi.t                          |   1 +
+ gunzip_static.t                       |   1 +
+ gzip.t                                |   1 +
+ gzip_flush.t                          |   1 +
+ h2.t                                  |   1 +
+ h2_absolute_redirect.t                |   1 +
+ h2_auth_request.t                     |   1 +
+ h2_fastcgi_request_buffering.t        |   1 +
+ h2_headers.t                          |   1 +
+ h2_keepalive.t                        |   1 +
+ h2_limit_conn.t                       |   1 +
+ h2_limit_req.t                        |   1 +
+ h2_priority.t                         |   1 +
+ h2_proxy_cache.t                      |   1 +
+ h2_proxy_max_temp_file_size.t         |   1 +
+ h2_proxy_protocol.t                   |   1 +
+ h2_proxy_request_buffering.t          |   1 +
+ h2_proxy_request_buffering_redirect.t |   1 +
+ h2_proxy_request_buffering_ssl.t      |   1 +
+ h2_proxy_ssl.t                        |   1 +
+ h2_request_body.t                     |   1 +
+ h2_request_body_extra.t               |   1 +
+ h2_request_body_js.t                  |   1 +
+ h2_request_body_preread.t             |   1 +
+ h2_server_push.t                      |   1 +
+ h2_server_tokens.t                    |   1 +
+ h2_ssl.t                              |   1 +
+ h2_ssl_proxy_cache.t                  |   1 +
+ h2_ssl_variables.t                    |   1 +
+ h2_ssl_verify_client.t                |   1 +
+ h2_trailers.t                         |   1 +
+ h2_variables.t                        |   1 +
+ headers.t                             |   1 +
+ http_absolute_redirect.t              |   1 +
+ http_disable_symlinks.t               |   1 +
+ http_error_page.t                     |   1 +
+ http_expect_100_continue.t            |   1 +
+ http_header_buffers.t                 |   1 +
+ http_host.t                           |   1 +
+ http_include.t                        |   1 +
+ http_keepalive.t                      |   1 +
+ http_listen.t                         |   1 +
+ http_location.t                       |   1 +
+ http_location_auto.t                  |   1 +
+ http_method.t                         |   1 +
+ http_resolver.t                       |   1 +
+ http_resolver_aaaa.t                  |   1 +
+ http_resolver_cname.t                 |   1 +
+ http_server_name.t                    |   1 +
+ http_try_files.t                      |   1 +
+ http_uri.t                            |   1 +
+ http_variables.t                      |   1 +
+ ignore_invalid_headers.t              |   1 +
+ image_filter.t                        |   1 +
+ image_filter_finalize.t               |   1 +
+ image_filter_webp.t                   |   1 +
+ index.t                               |   1 +
+ js.t                                  |   1 +
+ js_async.t                            |   1 +
+ js_body_filter.t                      |   1 +
+ js_buffer.t                           |   1 +
+ js_dump.t                             |   1 +
+ js_fetch.t                            |   1 +
+ js_fetch_https.t                      |   1 +
+ js_fetch_resolver.t                   |   1 +
+ js_header_filter.t                    |   1 +
+ js_headers.t                          |   1 +
+ js_import.t                           |   1 +
+ js_internal_redirect.t                |   1 +
+ js_modules.t                          |   1 +
+ js_ngx.t                              |   1 +
+ js_object.t                           |   1 +
+ js_paths.t                            |   1 +
+ js_promise.t                          |   1 +
+ js_request_body.t                     |   1 +
+ js_return.t                           |   1 +
+ js_subrequests.t                      |   1 +
+ js_var.t                              |   1 +
+ js_variables.t                        |   1 +
+ lib/Test/Nginx.pm                     |  38 ++++++++-
+ limit_conn.t                          |   1 +
+ limit_conn_complex.t                  |   1 +
+ limit_conn_dry_run.t                  |   1 +
+ limit_rate.t                          |   1 +
+ limit_req.t                           |   1 +
+ limit_req2.t                          |   1 +
+ limit_req_delay.t                     |   1 +
+ limit_req_dry_run.t                   |   1 +
+ mail_capability.t                     |   1 +
+ mail_error_log.t                      |   1 +
+ mail_imap.t                           |   1 +
+ mail_imap_ssl.t                       |   1 +
+ mail_max_errors.t                     |   1 +
+ mail_pop3.t                           |   1 +
+ mail_proxy_protocol.t                 |   1 +
+ mail_proxy_smtp_auth.t                |   1 +
+ mail_resolver.t                       |   1 +
+ mail_smtp.t                           |   1 +
+ mail_smtp_greeting_delay.t            |   1 +
+ mail_smtp_xclient.t                   |   1 +
+ mail_ssl.t                            |   1 +
+ mail_ssl_conf_command.t               |   1 +
+ map.t                                 |   1 +
+ map_complex.t                         |   1 +
+ map_volatile.t                        |   1 +
+ memcached.t                           |   1 +
+ memcached_fake.t                      |   1 +
+ memcached_fake_extra.t                |   1 +
+ memcached_keepalive.t                 |   1 +
+ memcached_keepalive_stale.t           |   1 +
+ merge_slashes.t                       |   1 +
+ mirror.t                              |   1 +
+ mirror_proxy.t                        |   1 +
+ mp4.t                                 |   1 +
+ mp4_ssi.t                             |   1 +
+ mp4_start_key_frame.t                 |   1 +
+ msie_refresh.t                        |   1 +
+ not_modified.t                        |   1 +
+ not_modified_finalize.t               |   1 +
+ not_modified_proxy.t                  |   1 +
+ perl.t                                |   1 +
+ perl_gzip.t                           |   1 +
+ perl_sleep.t                          |   1 +
+ perl_ssi.t                            |   1 +
+ post_action.t                         |   1 +
+ proxy.t                               |   1 +
+ proxy_bind.t                          |   1 +
+ proxy_bind_transparent.t              |   1 +
+ proxy_bind_transparent_capability.t   |   1 +
+ proxy_cache.t                         |   1 +
+ proxy_cache_bypass.t                  |   1 +
+ proxy_cache_chunked.t                 |   1 +
+ proxy_cache_convert_head.t            |   1 +
+ proxy_cache_error.t                   |   1 +
+ proxy_cache_lock.t                    |   1 +
+ proxy_cache_lock_age.t                |   1 +
+ proxy_cache_lock_ssi.t                |   1 +
+ proxy_cache_manager.t                 |   1 +
+ proxy_cache_max_range_offset.t        |   1 +
+ proxy_cache_min_free.t                |   1 +
+ proxy_cache_path.t                    |   1 +
+ proxy_cache_range.t                   |   1 +
+ proxy_cache_revalidate.t              |   1 +
+ proxy_cache_use_stale.t               |   1 +
+ proxy_cache_valid.t                   |   1 +
+ proxy_cache_variables.t               |   1 +
+ proxy_cache_vary.t                    |   1 +
+ proxy_chunked.t                       |   1 +
+ proxy_chunked_extra.t                 |   1 +
+ proxy_cookie.t                        |   1 +
+ proxy_cookie_flags.t                  |   1 +
+ proxy_extra_data.t                    |   1 +
+ proxy_force_ranges.t                  |   1 +
+ proxy_if.t                            |   1 +
+ proxy_implicit.t                      |   1 +
+ proxy_keepalive.t                     |   1 +
+ proxy_limit_rate.t                    |   1 +
+ proxy_max_temp_file_size.t            |   1 +
+ proxy_merge_headers.t                 |   1 +
+ proxy_method.t                        |   1 +
+ proxy_next_upstream.t                 |   1 +
+ proxy_next_upstream_tries.t           |   1 +
+ proxy_noclose.t                       |   1 +
+ proxy_non_idempotent.t                |   1 +
+ proxy_pass_request.t                  |   1 +
+ proxy_protocol.t                      |   1 +
+ proxy_protocol2.t                     |   1 +
+ proxy_protocol2_server.t              |   1 +
+ proxy_protocol_ipv6.t                 |   1 +
+ proxy_protocol_server.t               |   1 +
+ proxy_protocol_unix.t                 |   1 +
+ proxy_redirect.t                      |   1 +
+ proxy_request_buffering.t             |   1 +
+ proxy_request_buffering_chunked.t     |   1 +
+ proxy_request_buffering_keepalive.t   |   1 +
+ proxy_request_buffering_ssl.t         |   1 +
+ proxy_set_body.t                      |   1 +
+ proxy_ssi_body.t                      |   1 +
+ proxy_ssl.t                           |   1 +
+ proxy_ssl_certificate.t               |   1 +
+ proxy_ssl_certificate_vars.t          |   1 +
+ proxy_ssl_conf_command.t              |   1 +
+ proxy_ssl_keepalive.t                 |   1 +
+ proxy_ssl_name.t                      |   1 +
+ proxy_ssl_verify.t                    |   1 +
+ proxy_store.t                         |   1 +
+ proxy_unfinished.t                    |   1 +
+ proxy_unix.t                          |   1 +
+ proxy_upgrade.t                       |   1 +
+ proxy_upstream_cookie.t               |   1 +
+ proxy_variables.t                     |   1 +
+ proxy_websocket.t                     |   1 +
+ proxy_xar.t                           |   1 +
+ random_index.t                        |   1 +
+ range.t                               |   1 +
+ range_charset.t                       |   1 +
+ range_flv.t                           |   1 +
+ range_if_range.t                      |   1 +
+ range_mp4.t                           |   1 +
+ realip.t                              |   1 +
+ realip_hostname.t                     |   1 +
+ realip_remote_addr.t                  |   1 +
+ realip_remote_port.t                  |   1 +
+ referer.t                             |   1 +
+ request_id.t                          |   1 +
+ rewrite.t                             |   1 +
+ rewrite_if.t                          |   1 +
+ rewrite_set.t                         |   1 +
+ rewrite_unescape.t                    |   1 +
+ scgi.t                                |   1 +
+ scgi_body.t                           |   1 +
+ scgi_cache.t                          |   1 +
+ scgi_extra_data.t                     |   1 +
+ scgi_gzip.t                           |   1 +
+ scgi_merge_params.t                   |   1 +
+ secure_link.t                         |   1 +
+ server_tokens.t                       |   1 +
+ slice.t                               |   1 +
+ split_clients.t                       |   1 +
+ ssi.t                                 |   1 +
+ ssi_delayed.t                         |   1 +
+ ssi_if.t                              |   1 +
+ ssi_include_big.t                     |   1 +
+ ssi_waited.t                          |   1 +
+ ssl.t                                 |   1 +
+ ssl_certificate.t                     |   1 +
+ ssl_certificate_chain.t               |   1 +
+ ssl_certificate_perl.t                |   1 +
+ ssl_certificates.t                    |  21 +++--
+ ssl_client_escaped_cert.t             |   1 +
+ ssl_conf_command.t                    |   1 +
+ ssl_crl.t                             |   1 +
+ ssl_engine_keys.t                     |   1 +
+ ssl_ocsp.t                            | 107 ++++++++++++++++++++++++--
+ ssl_password_file.t                   |   1 +
+ ssl_proxy_protocol.t                  |   1 +
+ ssl_proxy_upgrade.t                   |   1 +
+ ssl_reject_handshake.t                |   1 +
+ ssl_sni.t                             |   1 +
+ ssl_sni_reneg.t                       |   1 +
+ ssl_sni_sessions.t                    |   1 +
+ ssl_stapling.t                        |  43 ++++++++---
+ ssl_verify_client.t                   |   1 +
+ ssl_verify_depth.t                    |  13 +++-
+ stream_access.t                       |   1 +
+ stream_access_log.t                   |   1 +
+ stream_access_log_escape.t            |   1 +
+ stream_access_log_none.t              |   1 +
+ stream_error_log.t                    |   1 +
+ stream_geo.t                          |   1 +
+ stream_geo_binary.t                   |   1 +
+ stream_geo_ipv6.t                     |   1 +
+ stream_geo_unix.t                     |   1 +
+ stream_geoip.t                        |   1 +
+ stream_js.t                           |   1 +
+ stream_js_buffer.t                    |   1 +
+ stream_js_exit.t                      |   1 +
+ stream_js_fetch.t                     |   1 +
+ stream_js_fetch_https.t               |   1 +
+ stream_js_import.t                    |   1 +
+ stream_js_ngx.t                       |   1 +
+ stream_js_object.t                    |   1 +
+ stream_js_var.t                       |   1 +
+ stream_js_variables.t                 |   1 +
+ stream_limit_conn.t                   |   1 +
+ stream_limit_conn_complex.t           |   1 +
+ stream_limit_conn_dry_run.t           |   1 +
+ stream_limit_rate.t                   |   1 +
+ stream_limit_rate2.t                  |   1 +
+ stream_map.t                          |   1 +
+ stream_proxy.t                        |   1 +
+ stream_proxy_bind.t                   |   1 +
+ stream_proxy_complex.t                |   1 +
+ stream_proxy_half_close.t             |   1 +
+ stream_proxy_next_upstream.t          |   1 +
+ stream_proxy_protocol.t               |   1 +
+ stream_proxy_protocol_ipv6.t          |   1 +
+ stream_proxy_protocol_ssl.t           |   1 +
+ stream_proxy_ssl.t                    |   1 +
+ stream_proxy_ssl_certificate.t        |   1 +
+ stream_proxy_ssl_certificate_vars.t   |   1 +
+ stream_proxy_ssl_conf_command.t       |   1 +
+ stream_proxy_ssl_name.t               |   1 +
+ stream_proxy_ssl_name_complex.t       |   1 +
+ stream_proxy_ssl_verify.t             |   1 +
+ stream_realip.t                       |   1 +
+ stream_realip_hostname.t              |   1 +
+ stream_resolver.t                     |   1 +
+ stream_set.t                          |   1 +
+ stream_split_clients.t                |   1 +
+ stream_ssl.t                          |   1 +
+ stream_ssl_alpn.t                     |   1 +
+ stream_ssl_certificate.t              |   1 +
+ stream_ssl_conf_command.t             |   1 +
+ stream_ssl_preread.t                  |   1 +
+ stream_ssl_preread_alpn.t             |   1 +
+ stream_ssl_preread_protocol.t         |   1 +
+ stream_ssl_realip.t                   |   1 +
+ stream_ssl_variables.t                |   1 +
+ stream_ssl_verify_client.t            |   1 +
+ stream_status_variable.t              |   1 +
+ stream_tcp_nodelay.t                  |   1 +
+ stream_udp_limit_conn.t               |   1 +
+ stream_udp_limit_rate.t               |   1 +
+ stream_udp_proxy.t                    |   1 +
+ stream_udp_proxy_requests.t           |   1 +
+ stream_udp_stream.t                   |   1 +
+ stream_udp_upstream.t                 |   1 +
+ stream_udp_upstream_hash.t            |   1 +
+ stream_udp_upstream_least_conn.t      |   1 +
+ stream_udp_wildcard.t                 |   1 +
+ stream_unix.t                         |   1 +
+ stream_upstream.t                     |   1 +
+ stream_upstream_hash.t                |   1 +
+ stream_upstream_least_conn.t          |   1 +
+ stream_upstream_max_conns.t           |   1 +
+ stream_upstream_random.t              |   1 +
+ stream_upstream_zone.t                |   1 +
+ stream_upstream_zone_ssl.t            |   1 +
+ stream_variables.t                    |   1 +
+ stub_status.t                         |   1 +
+ sub_filter.t                          |   1 +
+ sub_filter_buffering.t                |   1 +
+ sub_filter_merge.t                    |   1 +
+ sub_filter_multi.t                    |   1 +
+ sub_filter_multi2.t                   |   1 +
+ sub_filter_perl.t                     |   1 +
+ sub_filter_slice.t                    |   1 +
+ sub_filter_ssi.t                      |   1 +
+ subrequest_output_buffer_size.t       |   1 +
+ syslog.t                              |   1 +
+ trailers.t                            |   1 +
+ upstream.t                            |   1 +
+ upstream_hash.t                       |   1 +
+ upstream_hash_memcached.t             |   1 +
+ upstream_ip_hash.t                    |   1 +
+ upstream_ip_hash_ipv6.t               |   1 +
+ upstream_keepalive.t                  |   1 +
+ upstream_least_conn.t                 |   1 +
+ upstream_max_conns.t                  |   1 +
+ upstream_random.t                     |   1 +
+ upstream_zone.t                       |   1 +
+ upstream_zone_ssl.t                   |   1 +
+ userid.t                              |   1 +
+ userid_flags.t                        |   1 +
+ uwsgi.t                               |   1 +
+ uwsgi_body.t                          |   1 +
+ uwsgi_ssl.t                           |   1 +
+ uwsgi_ssl_certificate.t               |   1 +
+ uwsgi_ssl_certificate_vars.t          |   1 +
+ uwsgi_ssl_verify.t                    |   1 +
+ xslt.t                                |   1 +
+ xslt_params.t                         |   1 +
+ 406 files changed, 598 insertions(+), 32 deletions(-)
+
+diff --git a/README b/README
+index f43c586..bd259ca 100644
+--- a/README
++++ b/README
+@@ -52,4 +52,12 @@ TEST_NGINX_GLOBALS_STREAM
+ 
+     Sets additional directives in stream context.
+ 
++TEST_NGINX_GDBSERVER
++
++    Run Nginx under a gdbserver.
++
++TEST_NGINX_VALGRIND
++
++    Run Nginx under valgrind.
++
+ Happy testing!
+diff --git a/access.t b/access.t
+index ab26ec0..af3ea5b 100644
+--- a/access.t
++++ b/access.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/access_log.t b/access_log.t
+index baf1b55..341312b 100644
+--- a/access_log.t
++++ b/access_log.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite gzip/)->plan(19)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/access_log_variables.t b/access_log_variables.t
+index 7fd5d66..9effcc2 100644
+--- a/access_log_variables.t
++++ b/access_log_variables.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite/)->plan(6)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/addition.t b/addition.t
+index a5df712..bb35bef 100644
+--- a/addition.t
++++ b/addition.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/addition_buffered.t b/addition_buffered.t
+index c0a294a..e6927c9 100644
+--- a/addition_buffered.t
++++ b/addition_buffered.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/auth_basic.t b/auth_basic.t
+index e8957ed..732c849 100644
+--- a/auth_basic.t
++++ b/auth_basic.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http auth_basic/)->plan(24)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/auth_delay.t b/auth_delay.t
+index 90034eb..bab3800 100644
+--- a/auth_delay.t
++++ b/auth_delay.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http auth_basic/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/auth_request.t b/auth_request.t
+index d683166..547bf10 100644
+--- a/auth_request.t
++++ b/auth_request.t
+@@ -31,6 +31,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/auth_request_satisfy.t b/auth_request_satisfy.t
+index d512212..a3fe4e0 100644
+--- a/auth_request_satisfy.t
++++ b/auth_request_satisfy.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/auth_request_set.t b/auth_request_set.t
+index 2144b87..3d7ccdf 100644
+--- a/auth_request_set.t
++++ b/auth_request_set.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/autoindex.t b/autoindex.t
+index a9b2eed..4ad4fa3 100644
+--- a/autoindex.t
++++ b/autoindex.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http autoindex charset symlink/)->plan(16)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/autoindex_format.t b/autoindex_format.t
+index b89950c..e36d772 100644
+--- a/autoindex_format.t
++++ b/autoindex_format.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http autoindex symlink/)->plan(37)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/body.t b/body.t
+index dc487cc..94d76af 100644
+--- a/body.t
++++ b/body.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/body_chunked.t b/body_chunked.t
+index 2993b65..cdcad8e 100644
+--- a/body_chunked.t
++++ b/body_chunked.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/charset.t b/charset.t
+index 203c158..cb28cd2 100644
+--- a/charset.t
++++ b/charset.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http charset proxy/)->plan(7)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/charset_gzip_static.t b/charset_gzip_static.t
+index a6a6e4a..c6f43a4 100644
+--- a/charset_gzip_static.t
++++ b/charset_gzip_static.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy charset gzip_static/)->plan(13)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/config_dump.t b/config_dump.t
+index 2d50c04..ca23d62 100644
+--- a/config_dump.t
++++ b/config_dump.t
+@@ -29,6 +29,7 @@ $t->plan(13)->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ include %%TESTDIR%%/inc.conf;
+diff --git a/dav.t b/dav.t
+index 751ea2a..12e006c 100644
+--- a/dav.t
++++ b/dav.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/dav_chunked.t b/dav_chunked.t
+index 3c63ad2..dc5f488 100644
+--- a/dav_chunked.t
++++ b/dav_chunked.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/debug_connection.t b/debug_connection.t
+index 95e1bd5..62e3eb3 100644
+--- a/debug_connection.t
++++ b/debug_connection.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/debug_connection_syslog.t b/debug_connection_syslog.t
+index 5b28d7a..083adee 100644
+--- a/debug_connection_syslog.t
++++ b/debug_connection_syslog.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/debug_connection_unix.t b/debug_connection_unix.t
+index 71082e0..086d762 100644
+--- a/debug_connection_unix.t
++++ b/debug_connection_unix.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/empty_gif.t b/empty_gif.t
+index f87db6f..e224019 100644
+--- a/empty_gif.t
++++ b/empty_gif.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/error_log.t b/error_log.t
+index d7516c8..471f572 100644
+--- a/error_log.t
++++ b/error_log.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http limit_req/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/fastcgi.t b/fastcgi.t
+index 9103311..b30b21f 100644
+--- a/fastcgi.t
++++ b/fastcgi.t
+@@ -30,6 +30,7 @@ my $t = Test::Nginx->new()->has(qw/http fastcgi/)->plan(8)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/fastcgi_body.t b/fastcgi_body.t
+index d94916a..b5508a5 100644
+--- a/fastcgi_body.t
++++ b/fastcgi_body.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http fastcgi/)->plan(5)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/fastcgi_body2.t b/fastcgi_body2.t
+index 06216d5..7411f24 100644
+--- a/fastcgi_body2.t
++++ b/fastcgi_body2.t
+@@ -33,6 +33,7 @@ my $t = Test::Nginx->new()->has(qw/http fastcgi/)->plan(2)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/fastcgi_buffering.t b/fastcgi_buffering.t
+index d772151..8b7b903 100644
+--- a/fastcgi_buffering.t
++++ b/fastcgi_buffering.t
+@@ -32,6 +32,7 @@ my $t = Test::Nginx->new()->has(qw/http fastcgi ssi/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/fastcgi_cache.t b/fastcgi_cache.t
+index df4f50d..cb9c56b 100644
+--- a/fastcgi_cache.t
++++ b/fastcgi_cache.t
+@@ -30,6 +30,7 @@ my $t = Test::Nginx->new()->has(qw/http fastcgi cache/)->plan(5)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/fastcgi_extra_data.t b/fastcgi_extra_data.t
+index 2f35380..e097a98 100644
+--- a/fastcgi_extra_data.t
++++ b/fastcgi_extra_data.t
+@@ -32,6 +32,7 @@ my $t = Test::Nginx->new()
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/fastcgi_header_params.t b/fastcgi_header_params.t
+index 1ebf700..7901da1 100644
+--- a/fastcgi_header_params.t
++++ b/fastcgi_header_params.t
+@@ -30,6 +30,7 @@ my $t = Test::Nginx->new()->has(qw/http fastcgi/)->plan(1)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/fastcgi_keepalive.t b/fastcgi_keepalive.t
+index ba9591f..0777fb1 100644
+--- a/fastcgi_keepalive.t
++++ b/fastcgi_keepalive.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http fastcgi upstream_keepalive/)->plan(6)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/fastcgi_merge_params.t b/fastcgi_merge_params.t
+index 8a6f79b..3ccfc4e 100644
+--- a/fastcgi_merge_params.t
++++ b/fastcgi_merge_params.t
+@@ -30,6 +30,7 @@ my $t = Test::Nginx->new()->has(qw/http fastcgi cache/)->plan(9)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/fastcgi_merge_params2.t b/fastcgi_merge_params2.t
+index 9022c2f..7f57060 100644
+--- a/fastcgi_merge_params2.t
++++ b/fastcgi_merge_params2.t
+@@ -30,6 +30,7 @@ my $t = Test::Nginx->new()->has(qw/http fastcgi cache/)->plan(4)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/fastcgi_request_buffering.t b/fastcgi_request_buffering.t
+index a4b6f40..145adc4 100644
+--- a/fastcgi_request_buffering.t
++++ b/fastcgi_request_buffering.t
+@@ -34,6 +34,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/fastcgi_request_buffering_chunked.t b/fastcgi_request_buffering_chunked.t
+index 51d4389..174365e 100644
+--- a/fastcgi_request_buffering_chunked.t
++++ b/fastcgi_request_buffering_chunked.t
+@@ -35,6 +35,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/fastcgi_split.t b/fastcgi_split.t
+index 97fde45..897d246 100644
+--- a/fastcgi_split.t
++++ b/fastcgi_split.t
+@@ -33,6 +33,7 @@ my $t = Test::Nginx->new()->has(qw/http fastcgi/)->plan(1)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/fastcgi_unix.t b/fastcgi_unix.t
+index 0ff7b90..e43ed28 100644
+--- a/fastcgi_unix.t
++++ b/fastcgi_unix.t
+@@ -35,6 +35,7 @@ my $t = Test::Nginx->new()->has(qw/http fastcgi unix/)->plan(6)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/fastcgi_variables.t b/fastcgi_variables.t
+index 3fad44c..ab7ee94 100644
+--- a/fastcgi_variables.t
++++ b/fastcgi_variables.t
+@@ -33,6 +33,7 @@ my $t = Test::Nginx->new()->has(qw/http fastcgi rewrite/)->plan(3)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/geo.t b/geo.t
+index 47956ed..4eb2b29 100644
+--- a/geo.t
++++ b/geo.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/geo_binary.t b/geo_binary.t
+index 52dd58f..095185c 100644
+--- a/geo_binary.t
++++ b/geo_binary.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/geo_ipv6.t b/geo_ipv6.t
+index ace28db..9e24f64 100644
+--- a/geo_ipv6.t
++++ b/geo_ipv6.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http geo proxy/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/geo_unix.t b/geo_unix.t
+index fcdace4..1b929d5 100644
+--- a/geo_unix.t
++++ b/geo_unix.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/geoip.t b/geoip.t
+index fa65a17..ceded16 100644
+--- a/geoip.t
++++ b/geoip.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http http_geoip/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/grpc.t b/grpc.t
+index 22eeedb..cf8cc23 100644
+--- a/grpc.t
++++ b/grpc.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/grpc_next_upstream.t b/grpc_next_upstream.t
+index 9b34167..771e32e 100644
+--- a/grpc_next_upstream.t
++++ b/grpc_next_upstream.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/grpc_pass.t b/grpc_pass.t
+index 17130f8..8c3cfe3 100644
+--- a/grpc_pass.t
++++ b/grpc_pass.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http http_ssl http_v2 grpc rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/grpc_request_buffering.t b/grpc_request_buffering.t
+index 3cb7021..7fdf3ea 100644
+--- a/grpc_request_buffering.t
++++ b/grpc_request_buffering.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/grpc_ssl.t b/grpc_ssl.t
+index 759dff4..cf68ece 100644
+--- a/grpc_ssl.t
++++ b/grpc_ssl.t
+@@ -33,6 +33,7 @@ $t->write_file_expand('nginx.conf', <<'EOF')->plan(38);
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/gunzip.t b/gunzip.t
+index 641e076..9b268f8 100644
+--- a/gunzip.t
++++ b/gunzip.t
+@@ -31,6 +31,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/gunzip_memcached.t b/gunzip_memcached.t
+index f651e45..8292c7e 100644
+--- a/gunzip_memcached.t
++++ b/gunzip_memcached.t
+@@ -33,6 +33,7 @@ my $t = Test::Nginx->new()->has(qw/http gunzip memcached rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/gunzip_perl.t b/gunzip_perl.t
+index 64462bd..a04c136 100644
+--- a/gunzip_perl.t
++++ b/gunzip_perl.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http gunzip perl/)->plan(2)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/gunzip_ssi.t b/gunzip_ssi.t
+index d3f5d03..d0f342e 100644
+--- a/gunzip_ssi.t
++++ b/gunzip_ssi.t
+@@ -31,6 +31,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/gunzip_static.t b/gunzip_static.t
+index 4104609..75b91dd 100644
+--- a/gunzip_static.t
++++ b/gunzip_static.t
+@@ -31,6 +31,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/gzip.t b/gzip.t
+index c720faa..66557f5 100644
+--- a/gzip.t
++++ b/gzip.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/gzip_flush.t b/gzip_flush.t
+index 4bf77b7..d799096 100644
+--- a/gzip_flush.t
++++ b/gzip_flush.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http gzip perl/)->plan(2)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2.t b/h2.t
+index 1267c05..fecfe46 100644
+--- a/h2.t
++++ b/h2.t
+@@ -32,6 +32,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_absolute_redirect.t b/h2_absolute_redirect.t
+index 200821b..637da05 100644
+--- a/h2_absolute_redirect.t
++++ b/h2_absolute_redirect.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http http_v2 proxy rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_auth_request.t b/h2_auth_request.t
+index ab52dc2..6f4cc34 100644
+--- a/h2_auth_request.t
++++ b/h2_auth_request.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_fastcgi_request_buffering.t b/h2_fastcgi_request_buffering.t
+index 00b95a8..d9823b1 100644
+--- a/h2_fastcgi_request_buffering.t
++++ b/h2_fastcgi_request_buffering.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_headers.t b/h2_headers.t
+index db0db21..69c1441 100644
+--- a/h2_headers.t
++++ b/h2_headers.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http http_v2 proxy rewrite/)->plan(107)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_keepalive.t b/h2_keepalive.t
+index 8dae1ad..8b86037 100644
+--- a/h2_keepalive.t
++++ b/h2_keepalive.t
+@@ -30,6 +30,7 @@ my $t = Test::Nginx->new()->has(qw/http http_v2/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_limit_conn.t b/h2_limit_conn.t
+index e99e5f5..5c10899 100644
+--- a/h2_limit_conn.t
++++ b/h2_limit_conn.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http http_v2 limit_conn/)->plan(4)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_limit_req.t b/h2_limit_req.t
+index 963efec..982d02a 100644
+--- a/h2_limit_req.t
++++ b/h2_limit_req.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_priority.t b/h2_priority.t
+index 73b4f37..d4b4861 100644
+--- a/h2_priority.t
++++ b/h2_priority.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http http_v2/)->plan(20)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_proxy_cache.t b/h2_proxy_cache.t
+index 1069838..46a5710 100644
+--- a/h2_proxy_cache.t
++++ b/h2_proxy_cache.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http http_v2 proxy cache/)->plan(9)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_proxy_max_temp_file_size.t b/h2_proxy_max_temp_file_size.t
+index e784274..dca8dcd 100644
+--- a/h2_proxy_max_temp_file_size.t
++++ b/h2_proxy_max_temp_file_size.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_proxy_protocol.t b/h2_proxy_protocol.t
+index 9a597d4..b06812d 100644
+--- a/h2_proxy_protocol.t
++++ b/h2_proxy_protocol.t
+@@ -30,6 +30,7 @@ my $t = Test::Nginx->new()->has(qw/http http_v2 realip/)->plan(4)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_proxy_request_buffering.t b/h2_proxy_request_buffering.t
+index 482159b..4dc3a89 100644
+--- a/h2_proxy_request_buffering.t
++++ b/h2_proxy_request_buffering.t
+@@ -31,6 +31,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_proxy_request_buffering_redirect.t b/h2_proxy_request_buffering_redirect.t
+index 7805880..16d5610 100644
+--- a/h2_proxy_request_buffering_redirect.t
++++ b/h2_proxy_request_buffering_redirect.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF')->run();
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_proxy_request_buffering_ssl.t b/h2_proxy_request_buffering_ssl.t
+index 774aefb..d81da43 100644
+--- a/h2_proxy_request_buffering_ssl.t
++++ b/h2_proxy_request_buffering_ssl.t
+@@ -32,6 +32,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_proxy_ssl.t b/h2_proxy_ssl.t
+index a7bb9a7..2d04435 100644
+--- a/h2_proxy_ssl.t
++++ b/h2_proxy_ssl.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_request_body.t b/h2_request_body.t
+index c9f4cdb..3daf660 100644
+--- a/h2_request_body.t
++++ b/h2_request_body.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_request_body_extra.t b/h2_request_body_extra.t
+index 38d3db0..9f44eb0 100644
+--- a/h2_request_body_extra.t
++++ b/h2_request_body_extra.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_request_body_js.t b/h2_request_body_js.t
+index 15efa48..fef28ca 100644
+--- a/h2_request_body_js.t
++++ b/h2_request_body_js.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http http_v2/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_request_body_preread.t b/h2_request_body_preread.t
+index 5e629db..425f352 100644
+--- a/h2_request_body_preread.t
++++ b/h2_request_body_preread.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_server_push.t b/h2_server_push.t
+index 5a8440b..e36b6bc 100644
+--- a/h2_server_push.t
++++ b/h2_server_push.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http http_v2 proxy rewrite gzip/)->plan(54)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_server_tokens.t b/h2_server_tokens.t
+index 766b6dc..3d9943d 100644
+--- a/h2_server_tokens.t
++++ b/h2_server_tokens.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http http_v2 rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_ssl.t b/h2_ssl.t
+index b8ecf9e..451ea90 100644
+--- a/h2_ssl.t
++++ b/h2_ssl.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_ssl_proxy_cache.t b/h2_ssl_proxy_cache.t
+index 5edd43b..79adf1e 100644
+--- a/h2_ssl_proxy_cache.t
++++ b/h2_ssl_proxy_cache.t
+@@ -33,6 +33,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_ssl_variables.t b/h2_ssl_variables.t
+index 25d0aa0..9f1fd9f 100644
+--- a/h2_ssl_variables.t
++++ b/h2_ssl_variables.t
+@@ -35,6 +35,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_ssl_verify_client.t b/h2_ssl_verify_client.t
+index 5908e66..0e70b62 100644
+--- a/h2_ssl_verify_client.t
++++ b/h2_ssl_verify_client.t
+@@ -37,6 +37,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_trailers.t b/h2_trailers.t
+index 88f7415..eca249e 100644
+--- a/h2_trailers.t
++++ b/h2_trailers.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http http_v2/)->plan(22)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/h2_variables.t b/h2_variables.t
+index 90f70d8..e8a6901 100644
+--- a/h2_variables.t
++++ b/h2_variables.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http http_v2 rewrite/)->plan(6)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/headers.t b/headers.t
+index 44538c1..d8f78eb 100644
+--- a/headers.t
++++ b/headers.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy/)->plan(28)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/http_absolute_redirect.t b/http_absolute_redirect.t
+index ff3bb13..fb90f5d 100644
+--- a/http_absolute_redirect.t
++++ b/http_absolute_redirect.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/http_disable_symlinks.t b/http_disable_symlinks.t
+index 327f1cf..b1c6ca9 100644
+--- a/http_disable_symlinks.t
++++ b/http_disable_symlinks.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite symlink/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/http_error_page.t b/http_error_page.t
+index ce947f0..502fa44 100644
+--- a/http_error_page.t
++++ b/http_error_page.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy rewrite/)->plan(9)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/http_expect_100_continue.t b/http_expect_100_continue.t
+index 636b057..9fdad07 100644
+--- a/http_expect_100_continue.t
++++ b/http_expect_100_continue.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/http_header_buffers.t b/http_header_buffers.t
+index 7ff48fd..9e33902 100644
+--- a/http_header_buffers.t
++++ b/http_header_buffers.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite/)->plan(10)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/http_host.t b/http_host.t
+index 989a9fe..37a620a 100644
+--- a/http_host.t
++++ b/http_host.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/http_include.t b/http_include.t
+index 8d36a17..e42ff92 100644
+--- a/http_include.t
++++ b/http_include.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite proxy access/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/http_keepalive.t b/http_keepalive.t
+index 4e30db5..d12743f 100644
+--- a/http_keepalive.t
++++ b/http_keepalive.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/http_listen.t b/http_listen.t
+index e63f27c..31b9222 100644
+--- a/http_listen.t
++++ b/http_listen.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/http_location.t b/http_location.t
+index 625132d..596e813 100644
+--- a/http_location.t
++++ b/http_location.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite/)->plan(14)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/http_location_auto.t b/http_location_auto.t
+index 0cb0c6e..649eb34 100644
+--- a/http_location_auto.t
++++ b/http_location_auto.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy rewrite/)->plan(4)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/http_method.t b/http_method.t
+index 3f8a0d7..d7d9f1e 100644
+--- a/http_method.t
++++ b/http_method.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite/)->plan(2)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/http_resolver.t b/http_resolver.t
+index 4645e13..d1fbedf 100644
+--- a/http_resolver.t
++++ b/http_resolver.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/http_resolver_aaaa.t b/http_resolver_aaaa.t
+index 6ae16bc..1a7cef9 100644
+--- a/http_resolver_aaaa.t
++++ b/http_resolver_aaaa.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/http_resolver_cname.t b/http_resolver_cname.t
+index 255dcd9..8448f8a 100644
+--- a/http_resolver_cname.t
++++ b/http_resolver_cname.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/http_server_name.t b/http_server_name.t
+index 90e3681..0ce5cb8 100644
+--- a/http_server_name.t
++++ b/http_server_name.t
+@@ -32,6 +32,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite/)->plan(20)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/http_try_files.t b/http_try_files.t
+index 7a6d6a9..3dfe3cf 100644
+--- a/http_try_files.t
++++ b/http_try_files.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy rewrite/)->plan(10)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/http_uri.t b/http_uri.t
+index 5cf7f63..de3fc60 100644
+--- a/http_uri.t
++++ b/http_uri.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite/)->plan(19)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/http_variables.t b/http_variables.t
+index 5a16a62..13f3023 100644
+--- a/http_variables.t
++++ b/http_variables.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ignore_invalid_headers.t b/ignore_invalid_headers.t
+index f479be2..c295b16 100644
+--- a/ignore_invalid_headers.t
++++ b/ignore_invalid_headers.t
+@@ -30,6 +30,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy/)->plan(12)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/image_filter.t b/image_filter.t
+index 273230c..e0a7aed 100644
+--- a/image_filter.t
++++ b/image_filter.t
+@@ -32,6 +32,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy map image_filter/)->plan(39)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/image_filter_finalize.t b/image_filter_finalize.t
+index 2c04da7..44400f1 100644
+--- a/image_filter_finalize.t
++++ b/image_filter_finalize.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache image_filter limit_req/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/image_filter_webp.t b/image_filter_webp.t
+index c40351c..68bc7d2 100644
+--- a/image_filter_webp.t
++++ b/image_filter_webp.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http image_filter/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/index.t b/index.t
+index 584000d..e9b159d 100644
+--- a/index.t
++++ b/index.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http/)->plan(14)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js.t b/js.t
+index 7ebd838..9f7accd 100644
+--- a/js.t
++++ b/js.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js_async.t b/js_async.t
+index 3c817ea..038507f 100644
+--- a/js_async.t
++++ b/js_async.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js_body_filter.t b/js_body_filter.t
+index b90a250..928a11b 100644
+--- a/js_body_filter.t
++++ b/js_body_filter.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js_buffer.t b/js_buffer.t
+index 741ca10..0f1b372 100644
+--- a/js_buffer.t
++++ b/js_buffer.t
+@@ -32,6 +32,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite proxy/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js_dump.t b/js_dump.t
+index 2d80abd..1e5a504 100644
+--- a/js_dump.t
++++ b/js_dump.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js_fetch.t b/js_fetch.t
+index f47ef79..2d1c20a 100644
+--- a/js_fetch.t
++++ b/js_fetch.t
+@@ -32,6 +32,7 @@ my $t = Test::Nginx->new()->has(qw/http/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js_fetch_https.t b/js_fetch_https.t
+index 34d9dbd..b58da44 100644
+--- a/js_fetch_https.t
++++ b/js_fetch_https.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http http_ssl rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js_fetch_resolver.t b/js_fetch_resolver.t
+index 1034d9c..5b4f24a 100644
+--- a/js_fetch_resolver.t
++++ b/js_fetch_resolver.t
+@@ -32,6 +32,7 @@ my $t = Test::Nginx->new()->has(qw/http/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js_header_filter.t b/js_header_filter.t
+index aecac34..c78989a 100644
+--- a/js_header_filter.t
++++ b/js_header_filter.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js_headers.t b/js_headers.t
+index 62ebfed..410c54b 100644
+--- a/js_headers.t
++++ b/js_headers.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http charset/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js_import.t b/js_import.t
+index 52ee795..1145980 100644
+--- a/js_import.t
++++ b/js_import.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js_internal_redirect.t b/js_internal_redirect.t
+index ddbf0f7..07cf8ce 100644
+--- a/js_internal_redirect.t
++++ b/js_internal_redirect.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js_modules.t b/js_modules.t
+index 198ff46..4a883e2 100644
+--- a/js_modules.t
++++ b/js_modules.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js_ngx.t b/js_ngx.t
+index b97098d..53c2a7b 100644
+--- a/js_ngx.t
++++ b/js_ngx.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js_object.t b/js_object.t
+index 1429bb4..ecf4dcc 100644
+--- a/js_object.t
++++ b/js_object.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js_paths.t b/js_paths.t
+index 41254d9..8c28b83 100644
+--- a/js_paths.t
++++ b/js_paths.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js_promise.t b/js_promise.t
+index a380496..d6040c4 100644
+--- a/js_promise.t
++++ b/js_promise.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js_request_body.t b/js_request_body.t
+index ffb9375..9c63615 100644
+--- a/js_request_body.t
++++ b/js_request_body.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js_return.t b/js_return.t
+index 9ec0b8d..8748538 100644
+--- a/js_return.t
++++ b/js_return.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js_subrequests.t b/js_subrequests.t
+index 6452e93..e38ad5c 100644
+--- a/js_subrequests.t
++++ b/js_subrequests.t
+@@ -32,6 +32,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite proxy cache/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js_var.t b/js_var.t
+index 4de8236..8d4e9a5 100644
+--- a/js_var.t
++++ b/js_var.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/js_variables.t b/js_variables.t
+index 2b67abd..f98fbfd 100644
+--- a/js_variables.t
++++ b/js_variables.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/lib/Test/Nginx.pm b/lib/Test/Nginx.pm
+index d87b144..dfb709a 100644
+--- a/lib/Test/Nginx.pm
++++ b/lib/Test/Nginx.pm
+@@ -29,6 +29,8 @@ use POSIX qw/ waitpid WNOHANG /;
+ use Socket qw/ CRLF /;
+ use Test::More qw//;
+ 
++use Proc::Find qw(find_proc proc_exists);
++
+ ###############################################################################
+ 
+ our $NGINX = defined $ENV{TEST_NGINX_BINARY} ? $ENV{TEST_NGINX_BINARY}
+@@ -66,6 +68,8 @@ sub DESTROY {
+ 	$self->stop();
+ 	$self->stop_daemons();
+ 
++print('error logs at: '.$self->{_testdir}."\n");
++
+ 	if (Test::More->builder->expected_tests) {
+ 		local $Test::Nginx::TODO = 'alerts' unless $self->{_alerts};
+ 
+@@ -346,15 +350,41 @@ sub run(;$) {
+ 	my $pid = fork();
+ 	die "Unable to fork(): $!\n" unless defined $pid;
+ 
++	if ($ENV{TEST_NGINX_GDBSERVER}) {
++		for (1 .. 300) {
++			last unless proc_exists(name=>'gdbserver');
++			select undef, undef, undef, 0.1;
++		}
++	}
++
+ 	if ($pid == 0) {
+ 		my @globals = $self->{_test_globals} ?
+ 			() : ('-g', "pid $testdir/nginx.pid; "
+ 			. "error_log $testdir/error.log debug;");
++		if ($ENV{TEST_NGINX_CATLOG}) {
++			print { *STDERR } "\n";
++			print { *STDERR } $NGINX . ' ';
++			print { *STDERR } '-p' . ' ';
++			print { *STDERR } $testdir . ' ';
++			print { *STDERR } '-c' . ' ';
++			print { *STDERR } 'nginx.conf' . ' ';
++			print { *STDERR } @globals;
++			print { *STDERR } "\n";
++		}
+ 		my @error = $self->has_version('1.19.5') ?
+ 			('-e', 'error.log') : ();
+-		exec($NGINX, '-p', "$testdir/", '-c', 'nginx.conf',
+-			@error, @globals)
+-			or die "Unable to exec(): $!\n";
++		if ($ENV{TEST_NGINX_VALGRIND}) {
++			exec('valgrind', '--leak-check=full', '--log-file=' . "$testdir/valgrind.log", $NGINX, '-p', "$testdir/", '-c', 'nginx.conf', @error, @globals),
++				or die "Unable to exec(): $!\n";
++		}
++		elsif ($ENV{TEST_NGINX_GDBSERVER}) {
++			exec('gdbserver', ':2345', $NGINX, '-p', "$testdir/", '-c', 'nginx.conf', @error, @globals),
++				or die "Unable to exec(): $!\n";
++		}
++		else {
++			exec($NGINX, '-p', "$testdir/", '-c', 'nginx.conf', @error, @globals),
++				or die "Unable to exec(): $!\n";
++		}
+ 	}
+ 
+ 	# wait for nginx to start
+@@ -440,7 +470,7 @@ sub waitforfile($;$) {
+ 	# wait for file to appear
+ 	# or specified process to exit
+ 
+-	for (1 .. 50) {
++	for (1 .. 300) {
+ 		return 1 if -e $file;
+ 		return 0 if $exited;
+ 		$exited = waitpid($pid, WNOHANG) != 0 if $pid;
+diff --git a/limit_conn.t b/limit_conn.t
+index 7149919..45a55a6 100644
+--- a/limit_conn.t
++++ b/limit_conn.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF')->plan(8);
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/limit_conn_complex.t b/limit_conn_complex.t
+index 1952647..887f7f1 100644
+--- a/limit_conn_complex.t
++++ b/limit_conn_complex.t
+@@ -31,6 +31,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/limit_conn_dry_run.t b/limit_conn_dry_run.t
+index 3a31dea..687bee3 100644
+--- a/limit_conn_dry_run.t
++++ b/limit_conn_dry_run.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/limit_rate.t b/limit_rate.t
+index 245c5e8..69e7053 100644
+--- a/limit_rate.t
++++ b/limit_rate.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/limit_req.t b/limit_req.t
+index facb1eb..6048df9 100644
+--- a/limit_req.t
++++ b/limit_req.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/limit_req2.t b/limit_req2.t
+index 1f30a97..725bf10 100644
+--- a/limit_req2.t
++++ b/limit_req2.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/limit_req_delay.t b/limit_req_delay.t
+index f3627c7..9746666 100644
+--- a/limit_req_delay.t
++++ b/limit_req_delay.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/limit_req_dry_run.t b/limit_req_dry_run.t
+index 24c5e9b..4c0b8a7 100644
+--- a/limit_req_dry_run.t
++++ b/limit_req_dry_run.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/mail_capability.t b/mail_capability.t
+index 2b64c0d..f5c93aa 100644
+--- a/mail_capability.t
++++ b/mail_capability.t
+@@ -32,6 +32,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/mail_error_log.t b/mail_error_log.t
+index 5369d8b..c6af01b 100644
+--- a/mail_error_log.t
++++ b/mail_error_log.t
+@@ -38,6 +38,7 @@ error_log %%TESTDIR%%/e_glob.log info;
+ error_log %%TESTDIR%%/e_glob2.log info;
+ error_log syslog:server=127.0.0.1:%%PORT_8981_UDP%% info;
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/mail_imap.t b/mail_imap.t
+index e95b306..cec2fbe 100644
+--- a/mail_imap.t
++++ b/mail_imap.t
+@@ -32,6 +32,7 @@ my $t = Test::Nginx->new()->has(qw/mail imap http rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/mail_imap_ssl.t b/mail_imap_ssl.t
+index 1bf1f6d..65b474c 100644
+--- a/mail_imap_ssl.t
++++ b/mail_imap_ssl.t
+@@ -39,6 +39,7 @@ my $t = Test::Nginx->new()->has(qw/mail mail_ssl imap http rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/mail_max_errors.t b/mail_max_errors.t
+index f6f0171..c39d0a6 100644
+--- a/mail_max_errors.t
++++ b/mail_max_errors.t
+@@ -33,6 +33,7 @@ my $t = Test::Nginx->new()->has(qw/mail imap pop3 smtp/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/mail_pop3.t b/mail_pop3.t
+index db6d3ad..407e2d0 100644
+--- a/mail_pop3.t
++++ b/mail_pop3.t
+@@ -32,6 +32,7 @@ my $t = Test::Nginx->new()->has(qw/mail pop3 http rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/mail_proxy_protocol.t b/mail_proxy_protocol.t
+index d4f4852..43e2b06 100644
+--- a/mail_proxy_protocol.t
++++ b/mail_proxy_protocol.t
+@@ -32,6 +32,7 @@ my $t = Test::Nginx->new()->has(qw/mail smtp http rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/mail_proxy_smtp_auth.t b/mail_proxy_smtp_auth.t
+index 4eb92b9..1883fb3 100644
+--- a/mail_proxy_smtp_auth.t
++++ b/mail_proxy_smtp_auth.t
+@@ -32,6 +32,7 @@ my $t = Test::Nginx->new()->has(qw/mail smtp http rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/mail_resolver.t b/mail_resolver.t
+index 36d7130..1714bcd 100644
+--- a/mail_resolver.t
++++ b/mail_resolver.t
+@@ -36,6 +36,7 @@ my $t = Test::Nginx->new()->has(qw/mail mail_ssl smtp http rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/mail_smtp.t b/mail_smtp.t
+index c398d49..7d286ad 100644
+--- a/mail_smtp.t
++++ b/mail_smtp.t
+@@ -32,6 +32,7 @@ my $t = Test::Nginx->new()->has(qw/mail smtp http rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/mail_smtp_greeting_delay.t b/mail_smtp_greeting_delay.t
+index 605c12a..b499421 100644
+--- a/mail_smtp_greeting_delay.t
++++ b/mail_smtp_greeting_delay.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/mail smtp/)->plan(2)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/mail_smtp_xclient.t b/mail_smtp_xclient.t
+index 71e40ec..a6e0de1 100644
+--- a/mail_smtp_xclient.t
++++ b/mail_smtp_xclient.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/mail smtp http rewrite/)->plan(6)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/mail_ssl.t b/mail_ssl.t
+index 6cdc573..b11bf6f 100644
+--- a/mail_ssl.t
++++ b/mail_ssl.t
+@@ -43,6 +43,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/mail_ssl_conf_command.t b/mail_ssl_conf_command.t
+index 28f28bd..3ee5b28 100644
+--- a/mail_ssl_conf_command.t
++++ b/mail_ssl_conf_command.t
+@@ -41,6 +41,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/map.t b/map.t
+index 5184e98..4c24bfe 100644
+--- a/map.t
++++ b/map.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/map_complex.t b/map_complex.t
+index 51ac3d0..39fa2c2 100644
+--- a/map_complex.t
++++ b/map_complex.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/map_volatile.t b/map_volatile.t
+index b886b91..6c2d1c3 100644
+--- a/map_volatile.t
++++ b/map_volatile.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/memcached.t b/memcached.t
+index b617ded..799eccb 100644
+--- a/memcached.t
++++ b/memcached.t
+@@ -30,6 +30,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite memcached/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/memcached_fake.t b/memcached_fake.t
+index d231e41..7d55cfc 100644
+--- a/memcached_fake.t
++++ b/memcached_fake.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite memcached ssi/)->plan(3)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/memcached_fake_extra.t b/memcached_fake_extra.t
+index 1eb6060..0e99fb8 100644
+--- a/memcached_fake_extra.t
++++ b/memcached_fake_extra.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite memcached/)->plan(1)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/memcached_keepalive.t b/memcached_keepalive.t
+index aaf0224..6021389 100644
+--- a/memcached_keepalive.t
++++ b/memcached_keepalive.t
+@@ -30,6 +30,7 @@ my $t = Test::Nginx->new()->has(qw/http memcached upstream_keepalive rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/memcached_keepalive_stale.t b/memcached_keepalive_stale.t
+index c772a76..124ac9f 100644
+--- a/memcached_keepalive_stale.t
++++ b/memcached_keepalive_stale.t
+@@ -30,6 +30,7 @@ my $t = Test::Nginx->new()->has(qw/http memcached upstream_keepalive rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ worker_processes 2;
+diff --git a/merge_slashes.t b/merge_slashes.t
+index 7407cab..4eb1a81 100644
+--- a/merge_slashes.t
++++ b/merge_slashes.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite/)->plan(2)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/mirror.t b/mirror.t
+index 195734f..fde1eaf 100644
+--- a/mirror.t
++++ b/mirror.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/mirror_proxy.t b/mirror_proxy.t
+index f760d9d..c817dc5 100644
+--- a/mirror_proxy.t
++++ b/mirror_proxy.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF')->plan(7);
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/mp4.t b/mp4.t
+index 88ca1e9..1e748a3 100644
+--- a/mp4.t
++++ b/mp4.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http mp4/)->has_daemon('ffprobe')
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/mp4_ssi.t b/mp4_ssi.t
+index d41fe37..969d332 100644
+--- a/mp4_ssi.t
++++ b/mp4_ssi.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http mp4 ssi/)->has_daemon('ffprobe')
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/mp4_start_key_frame.t b/mp4_start_key_frame.t
+index 0d530fb..d74342f 100644
+--- a/mp4_start_key_frame.t
++++ b/mp4_start_key_frame.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http mp4/)->has_daemon('ffprobe')
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/msie_refresh.t b/msie_refresh.t
+index 374f8b2..f8d1590 100644
+--- a/msie_refresh.t
++++ b/msie_refresh.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite ssi/)->plan(5)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/not_modified.t b/not_modified.t
+index 7deceab..bc17c53 100644
+--- a/not_modified.t
++++ b/not_modified.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has('http')->plan(15)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/not_modified_finalize.t b/not_modified_finalize.t
+index 306acf2..be9ad3c 100644
+--- a/not_modified_finalize.t
++++ b/not_modified_finalize.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache/)->plan(2)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/not_modified_proxy.t b/not_modified_proxy.t
+index 04eb980..bde975a 100644
+--- a/not_modified_proxy.t
++++ b/not_modified_proxy.t
+@@ -32,6 +32,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/perl.t b/perl.t
+index b5ede66..2f087c1 100644
+--- a/perl.t
++++ b/perl.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http perl rewrite/)->plan(24)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/perl_gzip.t b/perl_gzip.t
+index 01700c4..bf0927f 100644
+--- a/perl_gzip.t
++++ b/perl_gzip.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http perl gzip/)->plan(2)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/perl_sleep.t b/perl_sleep.t
+index 6fdcf36..9c3a7d8 100644
+--- a/perl_sleep.t
++++ b/perl_sleep.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http perl ssi/)->plan(2)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/perl_ssi.t b/perl_ssi.t
+index 9d6d377..9063a04 100644
+--- a/perl_ssi.t
++++ b/perl_ssi.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http perl ssi/)->plan(3)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/post_action.t b/post_action.t
+index ab47a82..04b2628 100644
+--- a/post_action.t
++++ b/post_action.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy.t b/proxy.t
+index 324e451..c1d0b50 100644
+--- a/proxy.t
++++ b/proxy.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_bind.t b/proxy_bind.t
+index 437a29f..727380c 100644
+--- a/proxy_bind.t
++++ b/proxy_bind.t
+@@ -31,6 +31,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy/)->plan(5)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_bind_transparent.t b/proxy_bind_transparent.t
+index 66f55b4..c8e14e0 100644
+--- a/proxy_bind_transparent.t
++++ b/proxy_bind_transparent.t
+@@ -32,6 +32,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ user root wheel;
+ 
+diff --git a/proxy_bind_transparent_capability.t b/proxy_bind_transparent_capability.t
+index 626944f..5d666c0 100644
+--- a/proxy_bind_transparent_capability.t
++++ b/proxy_bind_transparent_capability.t
+@@ -33,6 +33,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_cache.t b/proxy_cache.t
+index 614bcb7..8232ed2 100644
+--- a/proxy_cache.t
++++ b/proxy_cache.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache gzip/)->plan(15)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_cache_bypass.t b/proxy_cache_bypass.t
+index 68edc43..4f9605b 100644
+--- a/proxy_cache_bypass.t
++++ b/proxy_cache_bypass.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache rewrite/)->plan(8)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_cache_chunked.t b/proxy_cache_chunked.t
+index 4df0019..36aa256 100644
+--- a/proxy_cache_chunked.t
++++ b/proxy_cache_chunked.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_cache_convert_head.t b/proxy_cache_convert_head.t
+index cb1e46c..928c8ab 100644
+--- a/proxy_cache_convert_head.t
++++ b/proxy_cache_convert_head.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache/)->plan(8)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_cache_error.t b/proxy_cache_error.t
+index 2ac2d7e..efd4596 100644
+--- a/proxy_cache_error.t
++++ b/proxy_cache_error.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache/)->plan(1)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_cache_lock.t b/proxy_cache_lock.t
+index 976a07d..48fe3fb 100644
+--- a/proxy_cache_lock.t
++++ b/proxy_cache_lock.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache/)->plan(17)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_cache_lock_age.t b/proxy_cache_lock_age.t
+index 12fe87a..516209a 100644
+--- a/proxy_cache_lock_age.t
++++ b/proxy_cache_lock_age.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache/)->plan(4)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_cache_lock_ssi.t b/proxy_cache_lock_ssi.t
+index 332cb78..f6a794c 100644
+--- a/proxy_cache_lock_ssi.t
++++ b/proxy_cache_lock_ssi.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache ssi/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_cache_manager.t b/proxy_cache_manager.t
+index 058474c..93c500c 100644
+--- a/proxy_cache_manager.t
++++ b/proxy_cache_manager.t
+@@ -32,6 +32,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_cache_max_range_offset.t b/proxy_cache_max_range_offset.t
+index 666f5ce..57769fa 100644
+--- a/proxy_cache_max_range_offset.t
++++ b/proxy_cache_max_range_offset.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_cache_min_free.t b/proxy_cache_min_free.t
+index 6daeebf..599017a 100644
+--- a/proxy_cache_min_free.t
++++ b/proxy_cache_min_free.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_cache_path.t b/proxy_cache_path.t
+index cac7913..e5fe2d5 100644
+--- a/proxy_cache_path.t
++++ b/proxy_cache_path.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache/)->plan(6)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_cache_range.t b/proxy_cache_range.t
+index f540095..83972fa 100644
+--- a/proxy_cache_range.t
++++ b/proxy_cache_range.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache/)->plan(7)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_cache_revalidate.t b/proxy_cache_revalidate.t
+index ff828a2..6b9a7ad 100644
+--- a/proxy_cache_revalidate.t
++++ b/proxy_cache_revalidate.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache rewrite/)->plan(23)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_cache_use_stale.t b/proxy_cache_use_stale.t
+index 812018b..60bc1b3 100644
+--- a/proxy_cache_use_stale.t
++++ b/proxy_cache_use_stale.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache rewrite limit_req ssi/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_cache_valid.t b/proxy_cache_valid.t
+index 3536bc9..bd63663 100644
+--- a/proxy_cache_valid.t
++++ b/proxy_cache_valid.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache rewrite/)->plan(12)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_cache_variables.t b/proxy_cache_variables.t
+index 5206637..ba00c77 100644
+--- a/proxy_cache_variables.t
++++ b/proxy_cache_variables.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache/)->plan(8)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_cache_vary.t b/proxy_cache_vary.t
+index 48f29b7..d2f03a5 100644
+--- a/proxy_cache_vary.t
++++ b/proxy_cache_vary.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache gzip rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_chunked.t b/proxy_chunked.t
+index 32c7b3c..b0a3a6e 100644
+--- a/proxy_chunked.t
++++ b/proxy_chunked.t
+@@ -31,6 +31,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_chunked_extra.t b/proxy_chunked_extra.t
+index 5e8de63..5816328 100644
+--- a/proxy_chunked_extra.t
++++ b/proxy_chunked_extra.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_cookie.t b/proxy_cookie.t
+index d98952c..93a17fc 100644
+--- a/proxy_cookie.t
++++ b/proxy_cookie.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_cookie_flags.t b/proxy_cookie_flags.t
+index 1bf18c9..b7aad24 100644
+--- a/proxy_cookie_flags.t
++++ b/proxy_cookie_flags.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_extra_data.t b/proxy_extra_data.t
+index 4345f13..887a56b 100644
+--- a/proxy_extra_data.t
++++ b/proxy_extra_data.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_force_ranges.t b/proxy_force_ranges.t
+index 3453f65..ba258aa 100644
+--- a/proxy_force_ranges.t
++++ b/proxy_force_ranges.t
+@@ -30,6 +30,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache/)->plan(7)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_if.t b/proxy_if.t
+index 6146a41..74fd4f8 100644
+--- a/proxy_if.t
++++ b/proxy_if.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF')->todo_alerts();
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_implicit.t b/proxy_implicit.t
+index e5b9cb4..e87843d 100644
+--- a/proxy_implicit.t
++++ b/proxy_implicit.t
+@@ -33,6 +33,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_keepalive.t b/proxy_keepalive.t
+index 3b29491..459aea3 100644
+--- a/proxy_keepalive.t
++++ b/proxy_keepalive.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy upstream_keepalive ssi rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_limit_rate.t b/proxy_limit_rate.t
+index 5fde715..1dd8e21 100644
+--- a/proxy_limit_rate.t
++++ b/proxy_limit_rate.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_max_temp_file_size.t b/proxy_max_temp_file_size.t
+index 020c0f3..2a7cd03 100644
+--- a/proxy_max_temp_file_size.t
++++ b/proxy_max_temp_file_size.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_merge_headers.t b/proxy_merge_headers.t
+index 434e9d1..d30a8b6 100644
+--- a/proxy_merge_headers.t
++++ b/proxy_merge_headers.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache rewrite/)->plan(7)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_method.t b/proxy_method.t
+index 6cdc0b4..f7c0971 100644
+--- a/proxy_method.t
++++ b/proxy_method.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy rewrite/)->plan(4)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_next_upstream.t b/proxy_next_upstream.t
+index b789cd7..fbf1f5e 100644
+--- a/proxy_next_upstream.t
++++ b/proxy_next_upstream.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_next_upstream_tries.t b/proxy_next_upstream_tries.t
+index e7b3a03..9621b3e 100644
+--- a/proxy_next_upstream_tries.t
++++ b/proxy_next_upstream_tries.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_noclose.t b/proxy_noclose.t
+index dd8d204..16a8eb5 100644
+--- a/proxy_noclose.t
++++ b/proxy_noclose.t
+@@ -38,6 +38,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_non_idempotent.t b/proxy_non_idempotent.t
+index 51edc2d..fd71fae 100644
+--- a/proxy_non_idempotent.t
++++ b/proxy_non_idempotent.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_pass_request.t b/proxy_pass_request.t
+index d695893..36bfd52 100644
+--- a/proxy_pass_request.t
++++ b/proxy_pass_request.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_protocol.t b/proxy_protocol.t
+index 0f73814..b64f116 100644
+--- a/proxy_protocol.t
++++ b/proxy_protocol.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF')->plan(20);
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_protocol2.t b/proxy_protocol2.t
+index 084adab..846afd5 100644
+--- a/proxy_protocol2.t
++++ b/proxy_protocol2.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF')->plan(23);
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_protocol2_server.t b/proxy_protocol2_server.t
+index 23ddc7e..bd75b37 100644
+--- a/proxy_protocol2_server.t
++++ b/proxy_protocol2_server.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_protocol_ipv6.t b/proxy_protocol_ipv6.t
+index ee63479..9f2b358 100644
+--- a/proxy_protocol_ipv6.t
++++ b/proxy_protocol_ipv6.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_protocol_server.t b/proxy_protocol_server.t
+index 44bbedc..009fcb4 100644
+--- a/proxy_protocol_server.t
++++ b/proxy_protocol_server.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_protocol_unix.t b/proxy_protocol_unix.t
+index a0124d2..b049444 100644
+--- a/proxy_protocol_unix.t
++++ b/proxy_protocol_unix.t
+@@ -31,6 +31,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_redirect.t b/proxy_redirect.t
+index 6078f58..2d3f4a9 100644
+--- a/proxy_redirect.t
++++ b/proxy_redirect.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_request_buffering.t b/proxy_request_buffering.t
+index b64a61b..47f4063 100644
+--- a/proxy_request_buffering.t
++++ b/proxy_request_buffering.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_request_buffering_chunked.t b/proxy_request_buffering_chunked.t
+index 3cbf7a5..8081c86 100644
+--- a/proxy_request_buffering_chunked.t
++++ b/proxy_request_buffering_chunked.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_request_buffering_keepalive.t b/proxy_request_buffering_keepalive.t
+index 7fe47b7..457d21a 100644
+--- a/proxy_request_buffering_keepalive.t
++++ b/proxy_request_buffering_keepalive.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_request_buffering_ssl.t b/proxy_request_buffering_ssl.t
+index 5fd7f3c..933d0cf 100644
+--- a/proxy_request_buffering_ssl.t
++++ b/proxy_request_buffering_ssl.t
+@@ -31,6 +31,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_set_body.t b/proxy_set_body.t
+index 00fc7dc..716d97a 100644
+--- a/proxy_set_body.t
++++ b/proxy_set_body.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy rewrite/)->plan(2)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_ssi_body.t b/proxy_ssi_body.t
+index 9df7daf..cfaac13 100644
+--- a/proxy_ssi_body.t
++++ b/proxy_ssi_body.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_ssl.t b/proxy_ssl.t
+index 70888e6..fbc7214 100644
+--- a/proxy_ssl.t
++++ b/proxy_ssl.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy http_ssl/)->has_daemon('openssl')
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_ssl_certificate.t b/proxy_ssl_certificate.t
+index 5a2ce63..1d6ca59 100644
+--- a/proxy_ssl_certificate.t
++++ b/proxy_ssl_certificate.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_ssl_certificate_vars.t b/proxy_ssl_certificate_vars.t
+index 3b4dbd3..750bb27 100644
+--- a/proxy_ssl_certificate_vars.t
++++ b/proxy_ssl_certificate_vars.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_ssl_conf_command.t b/proxy_ssl_conf_command.t
+index a563665..39d1160 100644
+--- a/proxy_ssl_conf_command.t
++++ b/proxy_ssl_conf_command.t
+@@ -33,6 +33,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_ssl_keepalive.t b/proxy_ssl_keepalive.t
+index 526c018..fad0932 100644
+--- a/proxy_ssl_keepalive.t
++++ b/proxy_ssl_keepalive.t
+@@ -31,6 +31,7 @@ my $t = Test::Nginx->new()->has(qw/http http_ssl proxy upstream_keepalive/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_ssl_name.t b/proxy_ssl_name.t
+index 00245ba..7d72598 100644
+--- a/proxy_ssl_name.t
++++ b/proxy_ssl_name.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http http_ssl sni proxy/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_ssl_verify.t b/proxy_ssl_verify.t
+index 5d8a3f5..0ec81d2 100644
+--- a/proxy_ssl_verify.t
++++ b/proxy_ssl_verify.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http http_ssl proxy/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_store.t b/proxy_store.t
+index eae18cf..b9fd247 100644
+--- a/proxy_store.t
++++ b/proxy_store.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF')->has(qw/http proxy ssi/)->plan(9);
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_unfinished.t b/proxy_unfinished.t
+index 6f93ae9..611dad0 100644
+--- a/proxy_unfinished.t
++++ b/proxy_unfinished.t
+@@ -37,6 +37,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_unix.t b/proxy_unix.t
+index bf8d4b6..b4750dc 100644
+--- a/proxy_unix.t
++++ b/proxy_unix.t
+@@ -32,6 +32,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_upgrade.t b/proxy_upgrade.t
+index 83cb153..de42c46 100644
+--- a/proxy_upgrade.t
++++ b/proxy_upgrade.t
+@@ -32,6 +32,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy ssi/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_upstream_cookie.t b/proxy_upstream_cookie.t
+index 4ae9bd8..aa46e60 100644
+--- a/proxy_upstream_cookie.t
++++ b/proxy_upstream_cookie.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_variables.t b/proxy_variables.t
+index f275fd9..f9c0e91 100644
+--- a/proxy_variables.t
++++ b/proxy_variables.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy/)->plan(4)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_websocket.t b/proxy_websocket.t
+index e559bb1..9cb75eb 100644
+--- a/proxy_websocket.t
++++ b/proxy_websocket.t
+@@ -38,6 +38,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/proxy_xar.t b/proxy_xar.t
+index 490eda6..b196cba 100644
+--- a/proxy_xar.t
++++ b/proxy_xar.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/random_index.t b/random_index.t
+index 160ea3b..8c933f3 100644
+--- a/random_index.t
++++ b/random_index.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http random_index symlink/)->plan(1)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/range.t b/range.t
+index 1a349cb..413e611 100644
+--- a/range.t
++++ b/range.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/range_charset.t b/range_charset.t
+index 910f484..055ac7b 100644
+--- a/range_charset.t
++++ b/range_charset.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy cache charset/)->plan(10)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/range_flv.t b/range_flv.t
+index 86b642f..7939f0d 100644
+--- a/range_flv.t
++++ b/range_flv.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/range_if_range.t b/range_if_range.t
+index 5ca75fa..8ccbee5 100644
+--- a/range_if_range.t
++++ b/range_if_range.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/range_mp4.t b/range_mp4.t
+index 7c87a61..f5c466c 100644
+--- a/range_mp4.t
++++ b/range_mp4.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/realip.t b/realip.t
+index ae96470..89d7be7 100644
+--- a/realip.t
++++ b/realip.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/realip_hostname.t b/realip_hostname.t
+index 48bbe7e..b6c4cc4 100644
+--- a/realip_hostname.t
++++ b/realip_hostname.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/realip_remote_addr.t b/realip_remote_addr.t
+index ef4799b..eed3555 100644
+--- a/realip_remote_addr.t
++++ b/realip_remote_addr.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/realip_remote_port.t b/realip_remote_port.t
+index 2d433d5..060845f 100644
+--- a/realip_remote_port.t
++++ b/realip_remote_port.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http realip/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/referer.t b/referer.t
+index 177c949..9bc26c8 100644
+--- a/referer.t
++++ b/referer.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/request_id.t b/request_id.t
+index 35be946..dbd7eec 100644
+--- a/request_id.t
++++ b/request_id.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite ssi/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/rewrite.t b/rewrite.t
+index 31b1a6f..12478e7 100644
+--- a/rewrite.t
++++ b/rewrite.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite proxy/)->plan(23)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/rewrite_if.t b/rewrite_if.t
+index 32ef0cf..6960dc0 100644
+--- a/rewrite_if.t
++++ b/rewrite_if.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite/)->plan(33)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/rewrite_set.t b/rewrite_set.t
+index 8596f1c..9e17f07 100644
+--- a/rewrite_set.t
++++ b/rewrite_set.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/rewrite_unescape.t b/rewrite_unescape.t
+index ec15648..bff3ea3 100644
+--- a/rewrite_unescape.t
++++ b/rewrite_unescape.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite/)->plan(9)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/scgi.t b/scgi.t
+index 66a93f0..8ed6f30 100644
+--- a/scgi.t
++++ b/scgi.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http scgi/)->plan(7)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/scgi_body.t b/scgi_body.t
+index 2efeacd..30e4e7a 100644
+--- a/scgi_body.t
++++ b/scgi_body.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http scgi/)->plan(5)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/scgi_cache.t b/scgi_cache.t
+index da07006..4892c66 100644
+--- a/scgi_cache.t
++++ b/scgi_cache.t
+@@ -30,6 +30,7 @@ my $t = Test::Nginx->new()->has(qw/http scgi cache/)->plan(10)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/scgi_extra_data.t b/scgi_extra_data.t
+index 249d7e1..3c3b3ae 100644
+--- a/scgi_extra_data.t
++++ b/scgi_extra_data.t
+@@ -31,6 +31,7 @@ my $t = Test::Nginx->new()
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/scgi_gzip.t b/scgi_gzip.t
+index 60244ab..107925d 100644
+--- a/scgi_gzip.t
++++ b/scgi_gzip.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http scgi gzip/)->plan(1)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/scgi_merge_params.t b/scgi_merge_params.t
+index efa0e2a..24261bb 100644
+--- a/scgi_merge_params.t
++++ b/scgi_merge_params.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http scgi cache/)->plan(9)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/secure_link.t b/secure_link.t
+index 2bdc2ba..8179379 100644
+--- a/secure_link.t
++++ b/secure_link.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/server_tokens.t b/server_tokens.t
+index ae9c611..c8d650b 100644
+--- a/server_tokens.t
++++ b/server_tokens.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/slice.t b/slice.t
+index 26dba3f..0fca415 100644
+--- a/slice.t
++++ b/slice.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/split_clients.t b/split_clients.t
+index 7666e1c..379850d 100644
+--- a/split_clients.t
++++ b/split_clients.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssi.t b/ssi.t
+index 621af74..d046872 100644
+--- a/ssi.t
++++ b/ssi.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssi_delayed.t b/ssi_delayed.t
+index 3d4d23a..a64acbf 100644
+--- a/ssi_delayed.t
++++ b/ssi_delayed.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssi_if.t b/ssi_if.t
+index a5fdf02..3318f42 100644
+--- a/ssi_if.t
++++ b/ssi_if.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssi_include_big.t b/ssi_include_big.t
+index ed1f2c1..4921d83 100644
+--- a/ssi_include_big.t
++++ b/ssi_include_big.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssi_waited.t b/ssi_waited.t
+index 8960604..32783e7 100644
+--- a/ssi_waited.t
++++ b/ssi_waited.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssl.t b/ssl.t
+index 6b63b6e..586bf62 100644
+--- a/ssl.t
++++ b/ssl.t
+@@ -37,6 +37,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssl_certificate.t b/ssl_certificate.t
+index ff49eee..4bcf830 100644
+--- a/ssl_certificate.t
++++ b/ssl_certificate.t
+@@ -49,6 +49,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssl_certificate_chain.t b/ssl_certificate_chain.t
+index d2ab0c2..70aa2bf 100644
+--- a/ssl_certificate_chain.t
++++ b/ssl_certificate_chain.t
+@@ -34,6 +34,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssl_certificate_perl.t b/ssl_certificate_perl.t
+index 35d8469..dac2282 100644
+--- a/ssl_certificate_perl.t
++++ b/ssl_certificate_perl.t
+@@ -46,6 +46,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssl_certificates.t b/ssl_certificates.t
+index a6ec6ad..4aeb340 100644
+--- a/ssl_certificates.t
++++ b/ssl_certificates.t
+@@ -39,6 +39,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+@@ -47,22 +48,22 @@ events {
+ http {
+     %%TEST_GLOBALS_HTTP%%
+ 
+-    ssl_certificate_key rsa.key;
+-    ssl_certificate rsa.crt;
+     ssl_ciphers DEFAULT:ECCdraft;
+ 
+     server {
+         listen       127.0.0.1:8080 ssl;
+         server_name  localhost;
+ 
+-        ssl_certificate_key ec.key;
+-        ssl_certificate ec.crt;
+-
+         ssl_certificate_key rsa.key;
+         ssl_certificate rsa.crt;
++    }
+ 
+-        ssl_certificate_key rsa.key;
+-        ssl_certificate rsa.crt;
++    server {
++        listen       127.0.0.1:8081 ssl;
++        server_name  localhost;
++
++        ssl_certificate_key ec.key;
++        ssl_certificate ec.crt;
+     }
+ }
+ 
+@@ -122,7 +123,11 @@ sub get_ssl_socket {
+ 		local $SIG{ALRM} = sub { die "timeout\n" };
+ 		local $SIG{PIPE} = sub { die "sigpipe\n" };
+ 		alarm(8);
+-		$s = IO::Socket::INET->new('127.0.0.1:' . port(8080));
++		if ($type eq 'RSA') {
++			$s = IO::Socket::INET->new('127.0.0.1:' . port(8080));
++		} else {
++			$s = IO::Socket::INET->new('127.0.0.1:' . port(8081));
++		}
+ 		alarm(0);
+ 	};
+ 	alarm(0);
+diff --git a/ssl_client_escaped_cert.t b/ssl_client_escaped_cert.t
+index e7fb5ee..b6cbba8 100644
+--- a/ssl_client_escaped_cert.t
++++ b/ssl_client_escaped_cert.t
+@@ -34,6 +34,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssl_conf_command.t b/ssl_conf_command.t
+index 4a79a6d..de0c37b 100644
+--- a/ssl_conf_command.t
++++ b/ssl_conf_command.t
+@@ -41,6 +41,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssl_crl.t b/ssl_crl.t
+index c5e32a8..2bf11d6 100644
+--- a/ssl_crl.t
++++ b/ssl_crl.t
+@@ -34,6 +34,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssl_engine_keys.t b/ssl_engine_keys.t
+index 853a452..58381bf 100644
+--- a/ssl_engine_keys.t
++++ b/ssl_engine_keys.t
+@@ -34,6 +34,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssl_ocsp.t b/ssl_ocsp.t
+index 9769bf2..84ac01b 100644
+--- a/ssl_ocsp.t
++++ b/ssl_ocsp.t
+@@ -49,6 +49,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+@@ -64,20 +65,19 @@ http {
+ 
+     ssl_ciphers DEFAULT:ECCdraft;
+ 
+-    ssl_certificate_key ec.key;
+-    ssl_certificate ec.crt;
+-
+-    ssl_certificate_key rsa.key;
+-    ssl_certificate rsa.crt;
+-
+     ssl_session_cache shared:SSL:1m;
+     ssl_session_tickets off;
+ 
+     add_header X-Verify x${ssl_client_verify}:${ssl_session_reused}x always;
+ 
++    # RSA servers
++
+     server {
+         listen       127.0.0.1:8443 ssl;
+         server_name  localhost;
++
++        ssl_certificate_key rsa.key;
++        ssl_certificate rsa.crt;
+     }
+ 
+     server {
+@@ -85,6 +85,9 @@ http {
+         server_name  sni;
+ 
+         ssl_ocsp_responder http://127.0.0.1:8082;
++
++        ssl_certificate_key rsa.key;
++        ssl_certificate rsa.crt;
+     }
+ 
+     server {
+@@ -92,6 +95,9 @@ http {
+         server_name  resolver;
+ 
+         ssl_ocsp on;
++
++        ssl_certificate_key rsa.key;
++        ssl_certificate rsa.crt;
+     }
+ 
+     server {
+@@ -100,6 +106,9 @@ http {
+ 
+         ssl_ocsp_responder http://127.0.0.1:8081;
+         ssl_ocsp on;
++
++        ssl_certificate_key rsa.key;
++        ssl_certificate rsa.crt;
+     }
+ 
+     server {
+@@ -107,6 +116,9 @@ http {
+         server_name  localhost;
+ 
+         ssl_ocsp_responder http://127.0.0.1:8082;
++
++        ssl_certificate_key rsa.key;
++        ssl_certificate rsa.crt;
+     }
+ 
+     server {
+@@ -114,6 +126,9 @@ http {
+         server_name  localhost;
+ 
+         ssl_ocsp_cache shared:OCSP:1m;
++
++        ssl_certificate_key rsa.key;
++        ssl_certificate rsa.crt;
+     }
+ 
+     server {
+@@ -122,6 +137,81 @@ http {
+ 
+         ssl_ocsp_responder http://127.0.0.1:8082;
+         ssl_client_certificate root.crt;
++
++        ssl_certificate_key rsa.key;
++        ssl_certificate rsa.crt;
++    }
++
++    # ECC servers
++
++    server {
++        listen       127.0.0.1:8543 ssl;
++        server_name  localhost;
++
++        ssl_certificate_key ec.key;
++        ssl_certificate ec.crt;
++    }
++
++    server {
++        listen       127.0.0.1:8543 ssl;
++        server_name  sni;
++
++        ssl_ocsp_responder http://127.0.0.1:8082;
++
++        ssl_certificate_key ec.key;
++        ssl_certificate ec.crt;
++    }
++
++    server {
++        listen       127.0.0.1:8543 ssl;
++        server_name  resolver;
++
++        ssl_ocsp on;
++
++        ssl_certificate_key ec.key;
++        ssl_certificate ec.crt;
++    }
++
++    server {
++        listen       127.0.0.1:8544 ssl;
++        server_name  localhost;
++
++        ssl_ocsp_responder http://127.0.0.1:8081;
++        ssl_ocsp on;
++
++        ssl_certificate_key ec.key;
++        ssl_certificate ec.crt;
++    }
++
++    server {
++        listen       127.0.0.1:8545 ssl;
++        server_name  localhost;
++
++        ssl_ocsp_responder http://127.0.0.1:8082;
++
++        ssl_certificate_key ec.key;
++        ssl_certificate ec.crt;
++    }
++
++    server {
++        listen       127.0.0.1:8546 ssl;
++        server_name  localhost;
++
++        ssl_ocsp_cache shared:OCSP:1m;
++
++        ssl_certificate_key ec.key;
++        ssl_certificate ec.crt;
++    }
++
++    server {
++        listen       127.0.0.1:8547 ssl;
++        server_name  localhost;
++
++        ssl_ocsp_responder http://127.0.0.1:8082;
++        ssl_client_certificate root.crt;
++
++        ssl_certificate_key ec.key;
++        ssl_certificate ec.crt;
+     }
+ }
+ 
+@@ -431,6 +521,11 @@ sub get_ssl_socket {
+ 	my $port = $extra{port} || 8443;
+ 	my $s;
+ 
++
++	if (defined $type && $type eq 'ECDSA') {
++        $port = $port + 100;
++    }
++
+ 	eval {
+ 		local $SIG{ALRM} = sub { die "timeout\n" };
+ 		local $SIG{PIPE} = sub { die "sigpipe\n" };
+diff --git a/ssl_password_file.t b/ssl_password_file.t
+index 6dbfb03..a068418 100644
+--- a/ssl_password_file.t
++++ b/ssl_password_file.t
+@@ -39,6 +39,7 @@ $t->plan(3)->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssl_proxy_protocol.t b/ssl_proxy_protocol.t
+index 1e69bf0..16893ff 100644
+--- a/ssl_proxy_protocol.t
++++ b/ssl_proxy_protocol.t
+@@ -36,6 +36,7 @@ $t->write_file_expand('nginx.conf', <<'EOF')->plan(18);
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssl_proxy_upgrade.t b/ssl_proxy_upgrade.t
+index 261234f..e999629 100644
+--- a/ssl_proxy_upgrade.t
++++ b/ssl_proxy_upgrade.t
+@@ -39,6 +39,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy http_ssl/)->has_daemon('openssl')
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssl_reject_handshake.t b/ssl_reject_handshake.t
+index 3386b35..ec52f02 100644
+--- a/ssl_reject_handshake.t
++++ b/ssl_reject_handshake.t
+@@ -33,6 +33,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssl_sni.t b/ssl_sni.t
+index d27d261..80d1d32 100644
+--- a/ssl_sni.t
++++ b/ssl_sni.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http http_ssl sni rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssl_sni_reneg.t b/ssl_sni_reneg.t
+index 86a4b19..fc69e52 100644
+--- a/ssl_sni_reneg.t
++++ b/ssl_sni_reneg.t
+@@ -45,6 +45,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssl_sni_sessions.t b/ssl_sni_sessions.t
+index 35ef753..d5d4a7b 100644
+--- a/ssl_sni_sessions.t
++++ b/ssl_sni_sessions.t
+@@ -27,6 +27,7 @@ $t->has_daemon('openssl')->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssl_stapling.t b/ssl_stapling.t
+index d5f2a61..2f5d6cb 100644
+--- a/ssl_stapling.t
++++ b/ssl_stapling.t
+@@ -42,6 +42,7 @@ $t->plan(9)->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+@@ -53,18 +54,21 @@ http {
+     ssl_stapling on;
+     ssl_trusted_certificate trusted.crt;
+ 
+-    ssl_certificate ec-end-int.crt;
+-    ssl_certificate_key ec-end.key;
+-
+-    ssl_certificate end-int.crt;
+-    ssl_certificate_key end.key;
+-
+     ssl_ciphers DEFAULT:ECCdraft;
+ 
+     server {
+         listen       127.0.0.1:8443 ssl;
+         listen       127.0.0.1:8080;
+         server_name  localhost;
++    ssl_certificate end-int.crt;
++    ssl_certificate_key end.key;
++    }
++    server {
++        listen       127.0.0.1:8453 ssl;
++        listen       127.0.0.1:8090;
++        server_name  localhost;
++    ssl_certificate ec-end-int.crt;
++    ssl_certificate_key ec-end.key;
+     }
+ 
+     server {
+@@ -72,6 +76,17 @@ http {
+         server_name  localhost;
+ 
+         ssl_stapling_responder http://127.0.0.1:8081/;
++    ssl_certificate end-int.crt;
++    ssl_certificate_key end.key;
++    }
++
++    server {
++        listen       127.0.0.1:8454 ssl;
++        server_name  localhost;
++
++        ssl_stapling_responder http://127.0.0.1:8081/;
++    ssl_certificate ec-end-int.crt;
++    ssl_certificate_key ec-end.key;
+     }
+ 
+     server {
+@@ -79,6 +94,8 @@ http {
+         server_name  localhost;
+ 
+         ssl_stapling_verify on;
++    ssl_certificate ec-end-int.crt;
++    ssl_certificate_key ec-end.key;
+     }
+ 
+     server {
+@@ -87,6 +104,8 @@ http {
+ 
+         ssl_certificate ec-end.crt;
+         ssl_certificate_key ec-end.key;
++    ssl_certificate ec-end-int.crt;
++    ssl_certificate_key ec-end.key;
+     }
+ 
+     server {
+@@ -97,6 +116,8 @@ http {
+         ssl_certificate_key end.key;
+ 
+         ssl_stapling_file %%TESTDIR%%/resp.der;
++    ssl_certificate end-int.crt;
++    ssl_certificate_key end.key;
+     }
+ 
+     server {
+@@ -114,6 +135,8 @@ http {
+         server_name  localhost;
+ 
+         ssl_stapling_responder http://127.0.0.1:8080/;
++    ssl_certificate ec-end-int.crt;
++    ssl_certificate_key ec-end.key;
+     }
+ }
+ 
+@@ -249,9 +272,9 @@ $t->waitforsocket("127.0.0.1:" . port(8081));
+ my $version = get_version();
+ 
+ staple(8443, 'RSA');
+-staple(8443, 'ECDSA');
++staple(8453, 'ECDSA');
+ staple(8444, 'RSA');
+-staple(8444, 'ECDSA');
++staple(8454, 'ECDSA');
+ staple(8445, 'ECDSA');
+ staple(8446, 'ECDSA');
+ staple(8449, 'ECDSA');
+@@ -259,10 +282,10 @@ staple(8449, 'ECDSA');
+ sleep 1;
+ 
+ ok(!staple(8443, 'RSA'), 'staple revoked');
+-ok(staple(8443, 'ECDSA'), 'staple success');
++ok(staple(8453, 'ECDSA'), 'staple success');
+ 
+ ok(!staple(8444, 'RSA'), 'responder revoked');
+-ok(staple(8444, 'ECDSA'), 'responder success');
++ok(staple(8454, 'ECDSA'), 'responder success');
+ 
+ ok(!staple(8445, 'ECDSA'), 'verify - root not trusted');
+ 
+diff --git a/ssl_verify_client.t b/ssl_verify_client.t
+index ce5fb80..64631dc 100644
+--- a/ssl_verify_client.t
++++ b/ssl_verify_client.t
+@@ -46,6 +46,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/ssl_verify_depth.t b/ssl_verify_depth.t
+index 5ec5057..a853597 100644
+--- a/ssl_verify_depth.t
++++ b/ssl_verify_depth.t
+@@ -34,6 +34,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+@@ -46,7 +47,7 @@ http {
+     ssl_certificate_key localhost.key;
+ 
+     ssl_verify_client on;
+-    ssl_client_certificate root-int.crt;
++    ssl_client_certificate root.crt;
+ 
+     add_header X-Client $ssl_client_s_dn always;
+     add_header X-Verify $ssl_client_verify always;
+@@ -100,6 +101,7 @@ commonName = supplied
+ 
+ [ myca_extensions ]
+ basicConstraints = critical,CA:TRUE
++keyUsage = keyCertSign
+ EOF
+ 
+ foreach my $name ('root', 'localhost') {
+@@ -135,6 +137,9 @@ system("openssl ca -batch -config $d/ca.conf "
+ 
+ $t->write_file('root-int.crt', $t->read_file('root.crt')
+ 	. $t->read_file('int.crt'));
++$t->write_file('end-int.crt', $t->read_file('end.crt')
++	. $t->read_file('int.crt'));
++$t->write_file('end-int.key', $t->read_file('end.key'));
+ 
+ $t->write_file('t', '');
+ $t->run();
+@@ -150,7 +155,7 @@ $t->run();
+ 
+ like(get(8080, 'root'), qr/SUCCESS/, 'verify depth 0 - root');
+ like(get(8080, 'int'),  qr/FAI|SUC/, 'verify depth 0 - no int');
+-like(get(8080, 'end'),  qr/FAILED/,  'verify depth 0 - no end');
++like(get(8080, 'end-int'),  qr/FAILED/,  'verify depth 0 - no end');
+ 
+ # with verify depth 1 (the default), one signature is
+ # expected to be checked, so certificates directly signed
+@@ -162,14 +167,14 @@ like(get(8080, 'end'),  qr/FAILED/,  'verify depth 0 - no end');
+ 
+ like(get(8081, 'root'), qr/SUCCESS/, 'verify depth 1 - root');
+ like(get(8081, 'int'),  qr/SUCCESS/, 'verify depth 1 - int');
+-like(get(8081, 'end'),  qr/FAI|SUC/, 'verify depth 1 - no end');
++like(get(8081, 'end-int'),  qr/FAI|SUC/, 'verify depth 1 - no end');
+ 
+ # with verify depth 2 it is also possible to validate up to two signatures,
+ # so chains with one intermediate certificate are allowed
+ 
+ like(get(8082, 'root'), qr/SUCCESS/, 'verify depth 2 - root');
+ like(get(8082, 'int'),  qr/SUCCESS/, 'verify depth 2 - int');
+-like(get(8082, 'end'),  qr/SUCCESS/, 'verify depth 2 - end');
++like(get(8082, 'end-int'),  qr/SUCCESS/, 'verify depth 2 - end');
+ 
+ ###############################################################################
+ 
+diff --git a/stream_access.t b/stream_access.t
+index 1a5a420..82bad0f 100644
+--- a/stream_access.t
++++ b/stream_access.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_access_log.t b/stream_access_log.t
+index 6fd4c12..5539116 100644
+--- a/stream_access_log.t
++++ b/stream_access_log.t
+@@ -31,6 +31,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_access_log_escape.t b/stream_access_log_escape.t
+index 3a5adc7..740ff80 100644
+--- a/stream_access_log_escape.t
++++ b/stream_access_log_escape.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_map stream_return/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_access_log_none.t b/stream_access_log_none.t
+index 75db734..d027449 100644
+--- a/stream_access_log_none.t
++++ b/stream_access_log_none.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_map stream_return/)->plan(1)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_error_log.t b/stream_error_log.t
+index c757881..1a70767 100644
+--- a/stream_error_log.t
++++ b/stream_error_log.t
+@@ -38,6 +38,7 @@ error_log %%TESTDIR%%/e_glob.log info;
+ error_log %%TESTDIR%%/e_glob2.log info;
+ error_log syslog:server=127.0.0.1:%%PORT_8983_UDP%% info;
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_geo.t b/stream_geo.t
+index 02531ab..c2e0bfc 100644
+--- a/stream_geo.t
++++ b/stream_geo.t
+@@ -31,6 +31,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_geo_binary.t b/stream_geo_binary.t
+index cb2f594..685eb21 100644
+--- a/stream_geo_binary.t
++++ b/stream_geo_binary.t
+@@ -31,6 +31,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_geo_ipv6.t b/stream_geo_ipv6.t
+index bd69819..d1458a4 100644
+--- a/stream_geo_ipv6.t
++++ b/stream_geo_ipv6.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_return stream_map stream_geo/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_geo_unix.t b/stream_geo_unix.t
+index 2f3e7a7..94a6f7b 100644
+--- a/stream_geo_unix.t
++++ b/stream_geo_unix.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_geoip.t b/stream_geoip.t
+index 88f9f11..690324b 100644
+--- a/stream_geoip.t
++++ b/stream_geoip.t
+@@ -32,6 +32,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_js.t b/stream_js.t
+index 2b22381..0155514 100644
+--- a/stream_js.t
++++ b/stream_js.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy rewrite stream stream_return udp/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_js_buffer.t b/stream_js_buffer.t
+index 8f1de5f..96fb87b 100644
+--- a/stream_js_buffer.t
++++ b/stream_js_buffer.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy rewrite stream stream_return/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_js_exit.t b/stream_js_exit.t
+index 257562c..f8ef0ed 100644
+--- a/stream_js_exit.t
++++ b/stream_js_exit.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http stream/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_js_fetch.t b/stream_js_fetch.t
+index 7d69cf0..0d6dfd1 100644
+--- a/stream_js_fetch.t
++++ b/stream_js_fetch.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http stream/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_js_fetch_https.t b/stream_js_fetch_https.t
+index a5ab396..4f20ae1 100644
+--- a/stream_js_fetch_https.t
++++ b/stream_js_fetch_https.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http http_ssl rewrite stream stream_return/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_js_import.t b/stream_js_import.t
+index 7000060..1a57a93 100644
+--- a/stream_js_import.t
++++ b/stream_js_import.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http stream stream_return/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_js_ngx.t b/stream_js_ngx.t
+index b99cd2e..78e723f 100644
+--- a/stream_js_ngx.t
++++ b/stream_js_ngx.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_return/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_js_object.t b/stream_js_object.t
+index ccbfcd7..8e64839 100644
+--- a/stream_js_object.t
++++ b/stream_js_object.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_return/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_js_var.t b/stream_js_var.t
+index cde2dc9..54aa04a 100644
+--- a/stream_js_var.t
++++ b/stream_js_var.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_return/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_js_variables.t b/stream_js_variables.t
+index fc5075c..a591d86 100644
+--- a/stream_js_variables.t
++++ b/stream_js_variables.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_return/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_limit_conn.t b/stream_limit_conn.t
+index 890f27f..0b4cbe8 100644
+--- a/stream_limit_conn.t
++++ b/stream_limit_conn.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http stream stream_limit_conn/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_limit_conn_complex.t b/stream_limit_conn_complex.t
+index edbef3d..15aeab8 100644
+--- a/stream_limit_conn_complex.t
++++ b/stream_limit_conn_complex.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http stream stream_limit_conn/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_limit_conn_dry_run.t b/stream_limit_conn_dry_run.t
+index ca7e528..c87b205 100644
+--- a/stream_limit_conn_dry_run.t
++++ b/stream_limit_conn_dry_run.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_limit_rate.t b/stream_limit_rate.t
+index 86d6487..0982f3b 100644
+--- a/stream_limit_rate.t
++++ b/stream_limit_rate.t
+@@ -30,6 +30,7 @@ my $t = Test::Nginx->new()->has(qw/stream/)->plan(9)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_limit_rate2.t b/stream_limit_rate2.t
+index 9635810..f028815 100644
+--- a/stream_limit_rate2.t
++++ b/stream_limit_rate2.t
+@@ -30,6 +30,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_map/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_map.t b/stream_map.t
+index 3b157cb..40e239d 100644
+--- a/stream_map.t
++++ b/stream_map.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_proxy.t b/stream_proxy.t
+index da32490..f31fd2f 100644
+--- a/stream_proxy.t
++++ b/stream_proxy.t
+@@ -30,6 +30,7 @@ my $t = Test::Nginx->new()->has(qw/stream/)->plan(5)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_proxy_bind.t b/stream_proxy_bind.t
+index 7404b85..ad27e39 100644
+--- a/stream_proxy_bind.t
++++ b/stream_proxy_bind.t
+@@ -31,6 +31,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy stream/)->plan(1)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_proxy_complex.t b/stream_proxy_complex.t
+index 5d25a4b..817b77f 100644
+--- a/stream_proxy_complex.t
++++ b/stream_proxy_complex.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_return/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_proxy_half_close.t b/stream_proxy_half_close.t
+index a265643..6e203d6 100644
+--- a/stream_proxy_half_close.t
++++ b/stream_proxy_half_close.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_proxy_next_upstream.t b/stream_proxy_next_upstream.t
+index 7e6a231..bc534de 100644
+--- a/stream_proxy_next_upstream.t
++++ b/stream_proxy_next_upstream.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_proxy_protocol.t b/stream_proxy_protocol.t
+index 74da547..019996c 100644
+--- a/stream_proxy_protocol.t
++++ b/stream_proxy_protocol.t
+@@ -31,6 +31,7 @@ my $t = Test::Nginx->new()->has(qw/stream/)->plan(2)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_proxy_protocol_ipv6.t b/stream_proxy_protocol_ipv6.t
+index 13620a2..60ba7cc 100644
+--- a/stream_proxy_protocol_ipv6.t
++++ b/stream_proxy_protocol_ipv6.t
+@@ -31,6 +31,7 @@ my $t = Test::Nginx->new()->has(qw/stream/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_proxy_protocol_ssl.t b/stream_proxy_protocol_ssl.t
+index 24ee5dd..d24090c 100644
+--- a/stream_proxy_protocol_ssl.t
++++ b/stream_proxy_protocol_ssl.t
+@@ -34,6 +34,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_proxy_ssl.t b/stream_proxy_ssl.t
+index 86fcd3a..7571882 100644
+--- a/stream_proxy_ssl.t
++++ b/stream_proxy_ssl.t
+@@ -31,6 +31,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_proxy_ssl_certificate.t b/stream_proxy_ssl_certificate.t
+index 973f08a..ead81bf 100644
+--- a/stream_proxy_ssl_certificate.t
++++ b/stream_proxy_ssl_certificate.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_proxy_ssl_certificate_vars.t b/stream_proxy_ssl_certificate_vars.t
+index 83b9bca..4c1ae8e 100644
+--- a/stream_proxy_ssl_certificate_vars.t
++++ b/stream_proxy_ssl_certificate_vars.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_proxy_ssl_conf_command.t b/stream_proxy_ssl_conf_command.t
+index 3ecf2a2..fb0d66c 100644
+--- a/stream_proxy_ssl_conf_command.t
++++ b/stream_proxy_ssl_conf_command.t
+@@ -34,6 +34,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_proxy_ssl_name.t b/stream_proxy_ssl_name.t
+index 0993c47..a4e2335 100644
+--- a/stream_proxy_ssl_name.t
++++ b/stream_proxy_ssl_name.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_proxy_ssl_name_complex.t b/stream_proxy_ssl_name_complex.t
+index 748d6bd..36906e1 100644
+--- a/stream_proxy_ssl_name_complex.t
++++ b/stream_proxy_ssl_name_complex.t
+@@ -31,6 +31,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_proxy_ssl_verify.t b/stream_proxy_ssl_verify.t
+index 697e058..c0d9803 100644
+--- a/stream_proxy_ssl_verify.t
++++ b/stream_proxy_ssl_verify.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_realip.t b/stream_realip.t
+index 2a21c63..bebb915 100644
+--- a/stream_realip.t
++++ b/stream_realip.t
+@@ -31,6 +31,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_return stream_realip/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_realip_hostname.t b/stream_realip_hostname.t
+index e2b5bfc..d447afb 100644
+--- a/stream_realip_hostname.t
++++ b/stream_realip_hostname.t
+@@ -30,6 +30,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_return stream_realip unix/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_resolver.t b/stream_resolver.t
+index 4a10c86..1f0fc38 100644
+--- a/stream_resolver.t
++++ b/stream_resolver.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_map stream_return/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_set.t b/stream_set.t
+index 582807a..651359c 100644
+--- a/stream_set.t
++++ b/stream_set.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_split_clients.t b/stream_split_clients.t
+index 8b26c16..3e1cbff 100644
+--- a/stream_split_clients.t
++++ b/stream_split_clients.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_ssl.t b/stream_ssl.t
+index 0ccf4f6..260cbf2 100644
+--- a/stream_ssl.t
++++ b/stream_ssl.t
+@@ -41,6 +41,7 @@ $t->plan(7)->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_ssl_alpn.t b/stream_ssl_alpn.t
+index e6d12c8..dbfc266 100644
+--- a/stream_ssl_alpn.t
++++ b/stream_ssl_alpn.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_ssl stream_return/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_ssl_certificate.t b/stream_ssl_certificate.t
+index 0676f4b..702dc99 100644
+--- a/stream_ssl_certificate.t
++++ b/stream_ssl_certificate.t
+@@ -47,6 +47,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_ssl_conf_command.t b/stream_ssl_conf_command.t
+index cedfd5d..26b12dd 100644
+--- a/stream_ssl_conf_command.t
++++ b/stream_ssl_conf_command.t
+@@ -41,6 +41,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_ssl_preread.t b/stream_ssl_preread.t
+index 787cabe..fbf2d9a 100644
+--- a/stream_ssl_preread.t
++++ b/stream_ssl_preread.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_map stream_ssl_preread/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_ssl_preread_alpn.t b/stream_ssl_preread_alpn.t
+index 49771bb..20a9343 100644
+--- a/stream_ssl_preread_alpn.t
++++ b/stream_ssl_preread_alpn.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_map stream_ssl_preread/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_ssl_preread_protocol.t b/stream_ssl_preread_protocol.t
+index 8950577..526f6fd 100644
+--- a/stream_ssl_preread_protocol.t
++++ b/stream_ssl_preread_protocol.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_ssl_preread stream_return/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_ssl_realip.t b/stream_ssl_realip.t
+index 004e379..2463612 100644
+--- a/stream_ssl_realip.t
++++ b/stream_ssl_realip.t
+@@ -35,6 +35,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_return stream_realip/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_ssl_variables.t b/stream_ssl_variables.t
+index 61fdee4..6d6f907 100644
+--- a/stream_ssl_variables.t
++++ b/stream_ssl_variables.t
+@@ -45,6 +45,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_ssl_verify_client.t b/stream_ssl_verify_client.t
+index f9c06e8..3d14aab 100644
+--- a/stream_ssl_verify_client.t
++++ b/stream_ssl_verify_client.t
+@@ -39,6 +39,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_status_variable.t b/stream_status_variable.t
+index 288f1ea..fb63b98 100644
+--- a/stream_status_variable.t
++++ b/stream_status_variable.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_tcp_nodelay.t b/stream_tcp_nodelay.t
+index 3545c60..ec77dd2 100644
+--- a/stream_tcp_nodelay.t
++++ b/stream_tcp_nodelay.t
+@@ -32,6 +32,7 @@ $t->plan(2)->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_udp_limit_conn.t b/stream_udp_limit_conn.t
+index b5ef4ce..aa792ac 100644
+--- a/stream_udp_limit_conn.t
++++ b/stream_udp_limit_conn.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_limit_conn udp/)->plan(9)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_udp_limit_rate.t b/stream_udp_limit_rate.t
+index b9befdc..5df7684 100644
+--- a/stream_udp_limit_rate.t
++++ b/stream_udp_limit_rate.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/stream udp/)->plan(8)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_udp_proxy.t b/stream_udp_proxy.t
+index 51174ed..d787047 100644
+--- a/stream_udp_proxy.t
++++ b/stream_udp_proxy.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/stream udp/)->plan(8)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_udp_proxy_requests.t b/stream_udp_proxy_requests.t
+index adfb2f3..02c3395 100644
+--- a/stream_udp_proxy_requests.t
++++ b/stream_udp_proxy_requests.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/stream udp/)->plan(26)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_udp_stream.t b/stream_udp_stream.t
+index 6880e49..7479d1d 100644
+--- a/stream_udp_stream.t
++++ b/stream_udp_stream.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_return udp/)->plan(8)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_udp_upstream.t b/stream_udp_upstream.t
+index f7e0940..28383e7 100644
+--- a/stream_udp_upstream.t
++++ b/stream_udp_upstream.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/stream udp/)->plan(5)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_udp_upstream_hash.t b/stream_udp_upstream_hash.t
+index 91bcd5e..9a9dbbb 100644
+--- a/stream_udp_upstream_hash.t
++++ b/stream_udp_upstream_hash.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_udp_upstream_least_conn.t b/stream_udp_upstream_least_conn.t
+index 6be9476..6dc8f46 100644
+--- a/stream_udp_upstream_least_conn.t
++++ b/stream_udp_upstream_least_conn.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_upstream_least_conn udp/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_udp_wildcard.t b/stream_udp_wildcard.t
+index 5ea4f40..be778aa 100644
+--- a/stream_udp_wildcard.t
++++ b/stream_udp_wildcard.t
+@@ -34,6 +34,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_return udp/)->plan(1)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_unix.t b/stream_unix.t
+index 4bacc3f..7e1507f 100644
+--- a/stream_unix.t
++++ b/stream_unix.t
+@@ -32,6 +32,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_upstream.t b/stream_upstream.t
+index eb1e642..f508818 100644
+--- a/stream_upstream.t
++++ b/stream_upstream.t
+@@ -30,6 +30,7 @@ my $t = Test::Nginx->new()->has(qw/stream/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_upstream_hash.t b/stream_upstream_hash.t
+index 12a8f00..7f6ba3f 100644
+--- a/stream_upstream_hash.t
++++ b/stream_upstream_hash.t
+@@ -31,6 +31,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_upstream_least_conn.t b/stream_upstream_least_conn.t
+index bba6f45..448feab 100644
+--- a/stream_upstream_least_conn.t
++++ b/stream_upstream_least_conn.t
+@@ -30,6 +30,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_upstream_least_conn/)->plan(2)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_upstream_max_conns.t b/stream_upstream_max_conns.t
+index 79da91b..ffb69ed 100644
+--- a/stream_upstream_max_conns.t
++++ b/stream_upstream_max_conns.t
+@@ -31,6 +31,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_upstream_random.t b/stream_upstream_random.t
+index ac59a96..98b5288 100644
+--- a/stream_upstream_random.t
++++ b/stream_upstream_random.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ worker_processes 2;
+ 
+diff --git a/stream_upstream_zone.t b/stream_upstream_zone.t
+index 03a88fd..9b09bbc 100644
+--- a/stream_upstream_zone.t
++++ b/stream_upstream_zone.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/stream stream_return stream_upstream_zone/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_upstream_zone_ssl.t b/stream_upstream_zone_ssl.t
+index 3af8373..e98528a 100644
+--- a/stream_upstream_zone_ssl.t
++++ b/stream_upstream_zone_ssl.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stream_variables.t b/stream_variables.t
+index 11e1466..7f5cf27 100644
+--- a/stream_variables.t
++++ b/stream_variables.t
+@@ -31,6 +31,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/stub_status.t b/stub_status.t
+index b1fa7dd..476c9d9 100644
+--- a/stub_status.t
++++ b/stub_status.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/sub_filter.t b/sub_filter.t
+index aef631e..6d8ec80 100644
+--- a/sub_filter.t
++++ b/sub_filter.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite sub proxy/)->plan(30)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/sub_filter_buffering.t b/sub_filter_buffering.t
+index f3631a3..d388977 100644
+--- a/sub_filter_buffering.t
++++ b/sub_filter_buffering.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http sub proxy/)->plan(2)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/sub_filter_merge.t b/sub_filter_merge.t
+index 1b483f5..cea1545 100644
+--- a/sub_filter_merge.t
++++ b/sub_filter_merge.t
+@@ -28,6 +28,7 @@ $t->plan(1)->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/sub_filter_multi.t b/sub_filter_multi.t
+index 14e3c1a..7a1b6be 100644
+--- a/sub_filter_multi.t
++++ b/sub_filter_multi.t
+@@ -30,6 +30,7 @@ my $long_pattern = '0123456789abcdef' x 17;
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/sub_filter_multi2.t b/sub_filter_multi2.t
+index 45e053c..052dbdc 100644
+--- a/sub_filter_multi2.t
++++ b/sub_filter_multi2.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite sub/)->plan(7)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/sub_filter_perl.t b/sub_filter_perl.t
+index 74d9bbb..211b606 100644
+--- a/sub_filter_perl.t
++++ b/sub_filter_perl.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http sub perl/)->plan(22)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/sub_filter_slice.t b/sub_filter_slice.t
+index 4f16250..d674966 100644
+--- a/sub_filter_slice.t
++++ b/sub_filter_slice.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/sub_filter_ssi.t b/sub_filter_ssi.t
+index e263fdb..951e3a6 100644
+--- a/sub_filter_ssi.t
++++ b/sub_filter_ssi.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http sub ssi xslt/)->plan(2)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/subrequest_output_buffer_size.t b/subrequest_output_buffer_size.t
+index 2446750..d1e4bca 100644
+--- a/subrequest_output_buffer_size.t
++++ b/subrequest_output_buffer_size.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy ssi/)->plan(4)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/syslog.t b/syslog.t
+index bbf4683..be9556b 100644
+--- a/syslog.t
++++ b/syslog.t
+@@ -36,6 +36,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ error_log syslog:server=127.0.0.1:%%PORT_8981_UDP%% info;
+ error_log %%TESTDIR%%/f_glob.log info;
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/trailers.t b/trailers.t
+index aa220c4..6a66602 100644
+--- a/trailers.t
++++ b/trailers.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy/)->plan(17)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/upstream.t b/upstream.t
+index 0d27766..7c2b601 100644
+--- a/upstream.t
++++ b/upstream.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/upstream_hash.t b/upstream_hash.t
+index e513a7e..f56a562 100644
+--- a/upstream_hash.t
++++ b/upstream_hash.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/upstream_hash_memcached.t b/upstream_hash_memcached.t
+index 994874f..3d2d159 100644
+--- a/upstream_hash_memcached.t
++++ b/upstream_hash_memcached.t
+@@ -35,6 +35,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/upstream_ip_hash.t b/upstream_ip_hash.t
+index 2516a83..209668b 100644
+--- a/upstream_ip_hash.t
++++ b/upstream_ip_hash.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy upstream_ip_hash realip rewrite/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/upstream_ip_hash_ipv6.t b/upstream_ip_hash_ipv6.t
+index 3850229..4524503 100644
+--- a/upstream_ip_hash_ipv6.t
++++ b/upstream_ip_hash_ipv6.t
+@@ -30,6 +30,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy upstream_ip_hash realip unix/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/upstream_keepalive.t b/upstream_keepalive.t
+index 6227df5..b064c7c 100644
+--- a/upstream_keepalive.t
++++ b/upstream_keepalive.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy upstream_keepalive/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/upstream_least_conn.t b/upstream_least_conn.t
+index 4ef5bed..f4f1cd5 100644
+--- a/upstream_least_conn.t
++++ b/upstream_least_conn.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/upstream_max_conns.t b/upstream_max_conns.t
+index 5c9318c..4aaea65 100644
+--- a/upstream_max_conns.t
++++ b/upstream_max_conns.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/upstream_random.t b/upstream_random.t
+index 67e8ddf..0edfb68 100644
+--- a/upstream_random.t
++++ b/upstream_random.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy upstream_zone upstream_random/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ worker_processes 2;
+ 
+diff --git a/upstream_zone.t b/upstream_zone.t
+index bc45a34..0ca2be5 100644
+--- a/upstream_zone.t
++++ b/upstream_zone.t
+@@ -27,6 +27,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy upstream_zone/)->plan(2)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/upstream_zone_ssl.t b/upstream_zone_ssl.t
+index b13def8..7bd1c0e 100644
+--- a/upstream_zone_ssl.t
++++ b/upstream_zone_ssl.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http proxy http_ssl upstream_zone/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/userid.t b/userid.t
+index 163ba71..3a88e9f 100644
+--- a/userid.t
++++ b/userid.t
+@@ -32,6 +32,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/userid_flags.t b/userid_flags.t
+index 9214d7f..e6b7ad1 100644
+--- a/userid_flags.t
++++ b/userid_flags.t
+@@ -28,6 +28,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/uwsgi.t b/uwsgi.t
+index f8b7aef..c3c54fa 100644
+--- a/uwsgi.t
++++ b/uwsgi.t
+@@ -26,6 +26,7 @@ my $t = Test::Nginx->new()->has(qw/http uwsgi/)->has_daemon('uwsgi')->plan(5)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/uwsgi_body.t b/uwsgi_body.t
+index d8857c8..004f550 100644
+--- a/uwsgi_body.t
++++ b/uwsgi_body.t
+@@ -28,6 +28,7 @@ my $t = Test::Nginx->new()->has(qw/http rewrite uwsgi/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/uwsgi_ssl.t b/uwsgi_ssl.t
+index 1c5c035..96a61f7 100644
+--- a/uwsgi_ssl.t
++++ b/uwsgi_ssl.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http uwsgi http_ssl/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/uwsgi_ssl_certificate.t b/uwsgi_ssl_certificate.t
+index fbb9750..1f88b36 100644
+--- a/uwsgi_ssl_certificate.t
++++ b/uwsgi_ssl_certificate.t
+@@ -30,6 +30,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/uwsgi_ssl_certificate_vars.t b/uwsgi_ssl_certificate_vars.t
+index 1f60635..abab0bc 100644
+--- a/uwsgi_ssl_certificate_vars.t
++++ b/uwsgi_ssl_certificate_vars.t
+@@ -29,6 +29,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/uwsgi_ssl_verify.t b/uwsgi_ssl_verify.t
+index cbb154a..ed34479 100644
+--- a/uwsgi_ssl_verify.t
++++ b/uwsgi_ssl_verify.t
+@@ -29,6 +29,7 @@ my $t = Test::Nginx->new()->has(qw/http http_ssl uwsgi/)
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/xslt.t b/xslt.t
+index b3b37d0..ac25fdf 100644
+--- a/xslt.t
++++ b/xslt.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+diff --git a/xslt_params.t b/xslt_params.t
+index 83493e9..c9bacb7 100644
+--- a/xslt_params.t
++++ b/xslt_params.t
+@@ -27,6 +27,7 @@ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+ %%TEST_GLOBALS%%
+ 
++master_process off;
+ daemon off;
+ 
+ events {
+-- 
+2.25.1
+
