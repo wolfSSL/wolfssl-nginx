@@ -47,8 +47,15 @@ Now rebuild Nginx:
 
 ### Testing
 
+#### `nginx-tests`
+
 Nginx has a repository of tests that can be obtained with the following command:
  - git clone https://github.com/nginx/nginx-tests.git
+
+To run the tests see the `nginx-tests` README. Tests are expected to pass with 
+exceptions. An example of running the tests:
+ 1. Change into the `nginx-tests` directory.
+ 2. Run tests: `TEST_NGINX_BINARY=../nginx-<nginx-version>-wolfssl/objs/nginx prove .`
 
 There are patch sets available in the `nginx-tests-patches` directory for the
 nginx-tests testsuite. These patches fix issues with running the tests against
@@ -63,12 +70,31 @@ The patch should be applied before running any tests using `patch -p1 < <path/to
 The date and commit hash in the file name refer to the version of nginx-tests
 that the patch was prepared for.
 
-To run the tests see the README. Tests are expected to pass with exceptions. An example of running the tests:
- 1. Change into nginx-tests directory.
- 2. Run tests: TEST_NGINX_BINARY=../nginx-<nginx-version>-wolfssl/objs/nginx prove .
+#### Debugging `nginx-tests`
 
-There will be failures of SSL tests for the following reasons:
- - using non-default, insecure cipher suites, multiple certificate chains not supported (ssl_certificate.t)
+To use the new gdbserver feature, the Nginx configuration of the test needs to
+be changed to include `master_process off;`. This can be done for all tests
+with the following `sed` command. Please note that some tests rely on on a
+master and worker process structure. Please check if the test passes without
+configuration changes first.
+
+```
+sed -e 's/daemon off;/master_process off;\ndaemon off;/g' -i *.t
+```
+
+For an easy way to remove all of the `master_process off;` changes, please use
+this `perl` command: 
+
+```
+perl -0777 -i -pe 's/master_process off;\n//g' *.t
+```
+
+#### `nginx-tests` Caveats
+
+Without applying the appropriate patchset, there will be failures of SSL tests
+for the following reasons:
+ - using non-default, insecure cipher suites, multiple certificate chains not
+   supported (ssl_certificate.t)
  - using non-default, insecure cipher suites (ssl_stapling.t)
 
 Note: the file ssl_ecc.t in wolfssl-nginx can be used with the Nginx test
@@ -77,6 +103,8 @@ Note: the file ssl_stapling.t.patch can be used to patch the ssl_stapling.t
 file in nginx-tests to work with wolfSSL. The version available in the testing
 repository uses different certs on the same server. This is not supported
 by wolfSSL so this patch moves the certs to separate server instances.
+
+#### Internal Tests
 
 There are additional tests available in wolfssl-nginx. These are in addition
 to the Nginx tests. The OpenSSL's superapp is required for OCSP Stapling
