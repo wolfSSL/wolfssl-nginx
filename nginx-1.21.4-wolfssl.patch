@@ -65,7 +65,7 @@ index 80be906e..8767aa33 100644
    --with-openssl-opt=OPTIONS         set additional build options for OpenSSL
  
 diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
-index 84afecd0..b75cc503 100644
+index 84afecd0..fe7e328e 100644
 --- a/src/event/ngx_event_openssl.c
 +++ b/src/event/ngx_event_openssl.c
 @@ -353,6 +353,8 @@ ngx_ssl_create(ngx_ssl_t *ssl, ngx_uint_t protocols, void *data)
@@ -113,24 +113,6 @@ index 84afecd0..b75cc503 100644
  ngx_int_t
  ngx_ssl_client_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *cert,
      ngx_int_t depth)
-@@ -1024,7 +1041,7 @@ ngx_ssl_verify_callback(int ok, X509_STORE_CTX *x509_store)
-         subject = X509_NAME_oneline(sname, NULL, 0);
-         if (subject == NULL) {
-             ngx_ssl_error(NGX_LOG_ALERT, c->log, 0,
--                          "X509_NAME_oneline() failed");
-+                          "X509_NAME_oneline() failed1");
-         }
- 
-     } else {
-@@ -1037,7 +1054,7 @@ ngx_ssl_verify_callback(int ok, X509_STORE_CTX *x509_store)
-         issuer = X509_NAME_oneline(iname, NULL, 0);
-         if (issuer == NULL) {
-             ngx_ssl_error(NGX_LOG_ALERT, c->log, 0,
--                          "X509_NAME_oneline() failed");
-+                          "X509_NAME_oneline() failed2");
-         }
- 
-     } else {
 @@ -1407,7 +1424,8 @@ ngx_ssl_ecdh_curve(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *name)
       * maximum interoperability.
       */
@@ -198,24 +180,6 @@ index 84afecd0..b75cc503 100644
          if (HMAC_Init_ex(hctx, key[i].hmac_key, size, digest, NULL) != 1) {
              ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "HMAC_Init_ex() failed");
              return -1;
-@@ -5186,7 +5224,7 @@ ngx_ssl_get_subject_dn_legacy(ngx_connection_t *c, ngx_pool_t *pool,
- 
-     p = X509_NAME_oneline(name, NULL, 0);
-     if (p == NULL) {
--        ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "X509_NAME_oneline() failed");
-+        ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "X509_NAME_oneline() failed3");
-         X509_free(cert);
-         return NGX_ERROR;
-     }
-@@ -5234,7 +5272,7 @@ ngx_ssl_get_issuer_dn_legacy(ngx_connection_t *c, ngx_pool_t *pool,
- 
-     p = X509_NAME_oneline(name, NULL, 0);
-     if (p == NULL) {
--        ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "X509_NAME_oneline() failed");
-+        ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "X509_NAME_oneline() failed4");
-         X509_free(cert);
-         return NGX_ERROR;
-     }
 diff --git a/src/event/ngx_event_openssl.h b/src/event/ngx_event_openssl.h
 index 4afdfad4..053999a8 100644
 --- a/src/event/ngx_event_openssl.h
