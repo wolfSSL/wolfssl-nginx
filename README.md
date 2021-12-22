@@ -6,7 +6,7 @@ wolfSSL is supported in Nginx. There are minor changes to the Nginx code base
 and recompilation is required.
 
 The tested versions:
- - wolfSSL 5.0.1
+ - wolfSSL 5.1.0
  - wolfSSL 3.14
  - wolfSSL 3.13.0 (with patch applied: wolfssl-3.13.0-nginx.patch)
  - Nginx 1.21.4
@@ -33,9 +33,7 @@ The tested versions:
 First you will need Nginx source package and wolfSSL source code.
 
 Now build and install wolfSSL.
-Please make sure to configure wolfSSL with ```./configure --enable-nginx```.
-The default installation directory is:
-    /usr/local.
+Please make sure to configure wolfSSL with ```./configure --prefix=/usr/local --enable-nginx```.
 
 To enable wolfSSL support in Nginx the source code must be patched:
  1. Change into the Nginx source directory.
@@ -118,14 +116,14 @@ Testing is only supported on Linux with bash.
 
 ## Post-Quantum Algorithms
 
-Starting with wolfSSL version 5.0.1 and nginx version 1.21.4, You can now enable the integration of liboqs in wolfSSL thus enabling post-quantum algorithms for your HTTPS connections over TLS 1.3. In this case, the web server will be nginx with wolfSSL and the web client will be curl with wolfSSL.
+Starting with wolfSSL version 5.1.0 and nginx version 1.21.4, You can now enable the integration of liboqs in wolfSSL thus enabling post-quantum algorithms for your HTTPS connections over TLS 1.3. In this case, the web server will be nginx with wolfSSL and the web client will be curl with wolfSSL.
 
-First, you will need to build the OpenQuantumSafe group's liboqs and their fork of OpenSSL to generate the certificate chain that uses the post-quantum FALCON signature scheme. Instructions for that are in wolfSSL git repoitory's INSTALL file. Note that when you generate your certificates, you will need to add your IP address as a subject alternative name. See here for more details: https://www.openssl.org/docs/manmaster/man5/x509v3_config.html
+First, you will need to build the OpenQuantumSafe group's liboqs and their fork of OpenSSL to generate the certificate chain that uses the post-quantum FALCON signature scheme. Instructions for that are in wolfSSL git repository's INSTALL file. Note that when you generate your certificates, you will need to add your IP address as a subject alternative name. See here for more details: https://www.openssl.org/docs/manmaster/man5/x509v3_config.html
 
 When building wolfSSL, you will need to add a couple extra flags:
 
 ```
-./configure --enable-nginx --with-liboqs --enable-all
+./configure --prefix=/usr/local --enable-nginx --with-liboqs --enable-curl
 make all
 make check
 sudo make install
@@ -136,12 +134,13 @@ NOTE: `--enable-all` is for curl.
 Now, you can continue on with the instructions for building nginx above. Once that is done, you'll need to build curl. You will need curl 7.80.0 or later. After unpacking curl, do the following:
 
 ```
-./configure --with-wolfssl=/usr/local
+./configure --prefix=/usr/local --with-wolfssl=/usr/local
 make all
 sudo make install
+sudo ldconfig
 ```
 
-This will install the curl executable in the default location: `/usr/local/bin/curl`.
+This will install the curl executable in the location: `/usr/local/bin/curl`.
 
 Now that all the software is built and installed, you will need to add a section in the nginx.conf file to enable TLS 1.3 and use the correct certificates. Edit `/usr/local/nginx/conf/nginx.conf`. Nginx's install process should have put a default version there. Search for the section with the title `HTTPS server` and replace that section with the following:
 
@@ -180,7 +179,7 @@ Check `/usr/local/nginx/logs/error.log` to see if there were any errors and ensu
 Run curl like this:
 
 ```
-LD_LIBRARY_PATH=/usr/local/lib /usr/local/bin/curl \
+/usr/local/bin/curl \
     --ciphers TLS_AES_256_GCM_SHA384 \
     --cacert /path/to/falcon_level5_root_cert.pem \
     --curve P521_KYBER_LEVEL5 \
@@ -189,7 +188,7 @@ LD_LIBRARY_PATH=/usr/local/lib /usr/local/bin/curl \
 
 NOTE: You will need to change the path of the root certificate and use your IP address.
 
-At this point you should see the usual "Welcome to nginx!" webpage. Congratulations, you have just performed a post-quantum connection with the P521_KYBER_LEVEL5 hybrid KEM group, the falcon Level 5 signature scheme and AES-256. 
+At this point you should see the usual "Welcome to nginx!" webpage. Congratulations, you have just performed a post-quantum connection with the P521_KYBER_LEVEL5 hybrid KEM group, the FALCON Level 5 signature scheme and AES-256.
 
 ## Licensing
 

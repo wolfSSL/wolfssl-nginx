@@ -65,11 +65,13 @@ diff --git a/auto/options b/auto/options
 diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
 --- a/src/event/ngx_event_openssl.c	2021-12-22 12:04:40.978789957 -0500
 +++ b/src/event/ngx_event_openssl.c	2021-12-22 12:13:23.031389526 -0500
-@@ -20,10 +20,12 @@
+@@ -20,10 +20,14 @@
  
  static X509 *ngx_ssl_load_certificate(ngx_pool_t *pool, char **err,
      ngx_str_t *cert, STACK_OF(X509) **chain);
 +#if !defined(WOLFSSL_NGINX) || !defined(HAVE_LIBOQS)
++/* In the case that HAVE_LIBOQS is defined, these functions are unused as we
++ * call SSL_CTX_use_PrivateKey_file() instead. */
  static EVP_PKEY *ngx_ssl_load_certificate_key(ngx_pool_t *pool, char **err,
      ngx_str_t *key, ngx_array_t *passwords);
  static int ngx_ssl_password_callback(char *buf, int size, int rwflag,
@@ -78,7 +80,7 @@ diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
  static int ngx_ssl_verify_callback(int ok, X509_STORE_CTX *x509_store);
  static void ngx_ssl_info_callback(const ngx_ssl_conn_t *ssl_conn, int where,
      int ret);
-@@ -353,6 +355,8 @@
+@@ -353,6 +357,8 @@
      }
  #endif
  
@@ -87,7 +89,7 @@ diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
  #ifdef SSL_CTX_set_min_proto_version
      SSL_CTX_set_min_proto_version(ssl->ctx, 0);
      SSL_CTX_set_max_proto_version(ssl->ctx, TLS1_2_VERSION);
-@@ -362,6 +366,7 @@
+@@ -362,6 +368,7 @@
      SSL_CTX_set_min_proto_version(ssl->ctx, 0);
      SSL_CTX_set_max_proto_version(ssl->ctx, TLS1_3_VERSION);
  #endif
@@ -95,7 +97,7 @@ diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
  
  #ifdef SSL_OP_NO_COMPRESSION
      SSL_CTX_set_options(ssl->ctx, SSL_OP_NO_COMPRESSION);
-@@ -391,6 +396,12 @@
+@@ -391,6 +398,12 @@
  
      SSL_CTX_set_info_callback(ssl->ctx, ngx_ssl_info_callback);
  
@@ -108,7 +110,7 @@ diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
      return NGX_OK;
  }
  
-@@ -424,7 +435,9 @@
+@@ -424,7 +437,9 @@
  {
      char            *err;
      X509            *x509;
@@ -118,7 +120,7 @@ diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
      STACK_OF(X509)  *chain;
  
      x509 = ngx_ssl_load_certificate(cf->pool, &err, cert, &chain);
-@@ -515,6 +528,20 @@
+@@ -515,6 +530,20 @@
      }
  #endif
  
@@ -139,7 +141,7 @@ diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
      pkey = ngx_ssl_load_certificate_key(cf->pool, &err, key, passwords);
      if (pkey == NULL) {
          if (err != NULL) {
-@@ -534,6 +561,7 @@
+@@ -534,6 +563,7 @@
      }
  
      EVP_PKEY_free(pkey);
@@ -147,7 +149,7 @@ diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
  
      return NGX_OK;
  }
-@@ -545,7 +573,9 @@
+@@ -545,7 +575,9 @@
  {
      char            *err;
      X509            *x509;
@@ -157,7 +159,7 @@ diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
      STACK_OF(X509)  *chain;
  
      x509 = ngx_ssl_load_certificate(pool, &err, cert, &chain);
-@@ -586,6 +616,20 @@
+@@ -586,6 +618,20 @@
  
  #endif
  
@@ -178,7 +180,7 @@ diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
      pkey = ngx_ssl_load_certificate_key(pool, &err, key, passwords);
      if (pkey == NULL) {
          if (err != NULL) {
-@@ -605,6 +649,7 @@
+@@ -605,6 +651,7 @@
      }
  
      EVP_PKEY_free(pkey);
@@ -186,7 +188,7 @@ diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
  
      return NGX_OK;
  }
-@@ -700,6 +745,7 @@
+@@ -700,6 +747,7 @@
  }
  
  
@@ -194,7 +196,7 @@ diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
  static EVP_PKEY *
  ngx_ssl_load_certificate_key(ngx_pool_t *pool, char **err,
      ngx_str_t *key, ngx_array_t *passwords)
-@@ -815,8 +861,10 @@
+@@ -815,8 +863,10 @@
  
      return pkey;
  }
@@ -205,7 +207,7 @@ diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
  static int
  ngx_ssl_password_callback(char *buf, int size, int rwflag, void *userdata)
  {
-@@ -843,7 +891,7 @@
+@@ -843,7 +893,7 @@
  
      return size;
  }
@@ -214,7 +216,7 @@ diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
  
  ngx_int_t
  ngx_ssl_ciphers(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *ciphers,
-@@ -865,6 +913,14 @@
+@@ -865,6 +915,14 @@
  
  
  ngx_int_t
@@ -229,7 +231,7 @@ diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
  ngx_ssl_client_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *cert,
      ngx_int_t depth)
  {
-@@ -1407,7 +1463,8 @@
+@@ -1407,7 +1465,8 @@
       * maximum interoperability.
       */
  
@@ -239,7 +241,7 @@ diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
  
      /*
       * OpenSSL 1.0.2+ allows configuring a curve list instead of a single
-@@ -1599,10 +1656,26 @@
+@@ -1599,10 +1658,26 @@
  ngx_ssl_new_client_session(ngx_ssl_conn_t *ssl_conn, ngx_ssl_session_t *sess)
  {
      ngx_connection_t  *c;
@@ -266,7 +268,7 @@ diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
          c->ssl->session = sess;
  
          c->ssl->save_session(c);
-@@ -1674,7 +1747,9 @@
+@@ -1674,7 +1749,9 @@
  {
  #ifdef TLS1_3_VERSION
      if (c->ssl->session) {
@@ -276,7 +278,7 @@ diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
          return c->ssl->session;
      }
  #endif
-@@ -4357,7 +4432,8 @@
+@@ -4357,7 +4434,8 @@
              return -1;
          }
  
@@ -286,7 +288,7 @@ diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
          if (HMAC_Init_ex(hctx, key[0].hmac_key, size, digest, NULL) != 1) {
              ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "HMAC_Init_ex() failed");
              return -1;
-@@ -4400,7 +4476,8 @@
+@@ -4400,7 +4478,8 @@
              size = 32;
          }
  
