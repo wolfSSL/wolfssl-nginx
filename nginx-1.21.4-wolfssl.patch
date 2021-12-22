@@ -1,8 +1,7 @@
 diff --git a/auto/lib/openssl/conf b/auto/lib/openssl/conf
-index 4fb52df7..4fe4b4a7 100644
---- a/auto/lib/openssl/conf
-+++ b/auto/lib/openssl/conf
-@@ -62,8 +62,33 @@ else
+--- a/auto/lib/openssl/conf	2021-12-22 12:04:40.982790023 -0500
++++ b/auto/lib/openssl/conf	2021-12-21 13:12:44.347836218 -0500
+@@ -62,8 +62,33 @@
          ngx_feature_path=
          ngx_feature_libs="-lssl -lcrypto $NGX_LIBDL $NGX_LIBPTHREAD"
          ngx_feature_test="SSL_CTX_set_options(NULL, 0)"
@@ -37,10 +36,9 @@ index 4fb52df7..4fe4b4a7 100644
  
              # FreeBSD port
 diff --git a/auto/options b/auto/options
-index 80be906e..8767aa33 100644
---- a/auto/options
-+++ b/auto/options
-@@ -149,6 +149,7 @@ PCRE_JIT=NO
+--- a/auto/options	2021-12-22 12:04:40.982790023 -0500
++++ b/auto/options	2021-12-21 13:12:44.347836218 -0500
+@@ -149,6 +149,7 @@
  
  USE_OPENSSL=NO
  OPENSSL=NONE
@@ -48,7 +46,7 @@ index 80be906e..8767aa33 100644
  
  USE_ZLIB=NO
  ZLIB=NONE
-@@ -358,6 +359,7 @@ use the \"--with-mail_ssl_module\" option instead"
+@@ -358,6 +359,7 @@
          --with-pcre-opt=*)               PCRE_OPT="$value"          ;;
          --with-pcre-jit)                 PCRE_JIT=YES               ;;
  
@@ -56,7 +54,7 @@ index 80be906e..8767aa33 100644
          --with-openssl=*)                OPENSSL="$value"           ;;
          --with-openssl-opt=*)            OPENSSL_OPT="$value"       ;;
  
-@@ -583,6 +585,7 @@ cat << END
+@@ -583,6 +585,7 @@
    --with-libatomic                   force libatomic_ops library usage
    --with-libatomic=DIR               set path to libatomic_ops library sources
  
@@ -65,10 +63,22 @@ index 80be906e..8767aa33 100644
    --with-openssl-opt=OPTIONS         set additional build options for OpenSSL
  
 diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
-index 84afecd0..fe7e328e 100644
---- a/src/event/ngx_event_openssl.c
-+++ b/src/event/ngx_event_openssl.c
-@@ -353,6 +353,8 @@ ngx_ssl_create(ngx_ssl_t *ssl, ngx_uint_t protocols, void *data)
+--- a/src/event/ngx_event_openssl.c	2021-12-22 12:04:40.978789957 -0500
++++ b/src/event/ngx_event_openssl.c	2021-12-22 12:13:23.031389526 -0500
+@@ -20,10 +20,12 @@
+ 
+ static X509 *ngx_ssl_load_certificate(ngx_pool_t *pool, char **err,
+     ngx_str_t *cert, STACK_OF(X509) **chain);
++#if !defined(WOLFSSL_NGINX) || !defined(HAVE_LIBOQS)
+ static EVP_PKEY *ngx_ssl_load_certificate_key(ngx_pool_t *pool, char **err,
+     ngx_str_t *key, ngx_array_t *passwords);
+ static int ngx_ssl_password_callback(char *buf, int size, int rwflag,
+     void *userdata);
++#endif
+ static int ngx_ssl_verify_callback(int ok, X509_STORE_CTX *x509_store);
+ static void ngx_ssl_info_callback(const ngx_ssl_conn_t *ssl_conn, int where,
+     int ret);
+@@ -353,6 +355,8 @@
      }
  #endif
  
@@ -77,7 +87,7 @@ index 84afecd0..fe7e328e 100644
  #ifdef SSL_CTX_set_min_proto_version
      SSL_CTX_set_min_proto_version(ssl->ctx, 0);
      SSL_CTX_set_max_proto_version(ssl->ctx, TLS1_2_VERSION);
-@@ -362,6 +364,7 @@ ngx_ssl_create(ngx_ssl_t *ssl, ngx_uint_t protocols, void *data)
+@@ -362,6 +366,7 @@
      SSL_CTX_set_min_proto_version(ssl->ctx, 0);
      SSL_CTX_set_max_proto_version(ssl->ctx, TLS1_3_VERSION);
  #endif
@@ -85,7 +95,7 @@ index 84afecd0..fe7e328e 100644
  
  #ifdef SSL_OP_NO_COMPRESSION
      SSL_CTX_set_options(ssl->ctx, SSL_OP_NO_COMPRESSION);
-@@ -391,6 +394,12 @@ ngx_ssl_create(ngx_ssl_t *ssl, ngx_uint_t protocols, void *data)
+@@ -391,6 +396,12 @@
  
      SSL_CTX_set_info_callback(ssl->ctx, ngx_ssl_info_callback);
  
@@ -98,11 +108,116 @@ index 84afecd0..fe7e328e 100644
      return NGX_OK;
  }
  
-@@ -864,6 +873,14 @@ ngx_ssl_ciphers(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *ciphers,
+@@ -424,7 +435,9 @@
+ {
+     char            *err;
+     X509            *x509;
++#if !defined(WOLFSSL_NGINX) || !defined(HAVE_LIBOQS)
+     EVP_PKEY        *pkey;
++#endif
+     STACK_OF(X509)  *chain;
+ 
+     x509 = ngx_ssl_load_certificate(cf->pool, &err, cert, &chain);
+@@ -515,6 +528,20 @@
+     }
+ #endif
+ 
++#if defined(WOLFSSL_NGINX) && defined(HAVE_LIBOQS)
++        if (ngx_get_full_name(cf->pool, (ngx_str_t *) &ngx_cycle->conf_prefix,
++                              key) != NGX_OK) {
++            return NGX_OK;
++        }
++
++        if (SSL_CTX_use_PrivateKey_file(ssl->ctx, (char *)key->data, SSL_FILETYPE_PEM)
++            < 1) {
++            ngx_ssl_error(NGX_LOG_EMERG, ssl->log, 0,
++                          "cannot load certificate key \"%s\"",
++                          key->data);
++            return NGX_ERROR;
++        }
++#else
+     pkey = ngx_ssl_load_certificate_key(cf->pool, &err, key, passwords);
+     if (pkey == NULL) {
+         if (err != NULL) {
+@@ -534,6 +561,7 @@
+     }
+ 
+     EVP_PKEY_free(pkey);
++#endif
+ 
+     return NGX_OK;
+ }
+@@ -545,7 +573,9 @@
+ {
+     char            *err;
+     X509            *x509;
++#if !defined(WOLFSSL_NGINX) || !defined(HAVE_LIBOQS)
+     EVP_PKEY        *pkey;
++#endif
+     STACK_OF(X509)  *chain;
+ 
+     x509 = ngx_ssl_load_certificate(pool, &err, cert, &chain);
+@@ -586,6 +616,20 @@
+ 
+ #endif
+ 
++#if defined(WOLFSSL_NGINX) && defined(HAVE_LIBOQS)
++    if (ngx_get_full_name(pool, (ngx_str_t *) &ngx_cycle->conf_prefix,
++                          key) != NGX_OK) {
++        return NGX_OK;
++    }
++
++    if (SSL_use_PrivateKey_file(c->ssl->connection, (char *)key->data, SSL_FILETYPE_PEM)
++        < 1) {
++        ngx_ssl_error(NGX_LOG_EMERG, c->log, 0,
++                      "cannot load certificate key \"%s\"",
++                      key->data);
++        return NGX_ERROR;
++    }
++#else
+     pkey = ngx_ssl_load_certificate_key(pool, &err, key, passwords);
+     if (pkey == NULL) {
+         if (err != NULL) {
+@@ -605,6 +649,7 @@
+     }
+ 
+     EVP_PKEY_free(pkey);
++#endif
+ 
+     return NGX_OK;
+ }
+@@ -700,6 +745,7 @@
  }
  
  
-+ngx_int_t
++#if !defined(WOLFSSL_NGINX) || !defined(HAVE_LIBOQS)
+ static EVP_PKEY *
+ ngx_ssl_load_certificate_key(ngx_pool_t *pool, char **err,
+     ngx_str_t *key, ngx_array_t *passwords)
+@@ -815,8 +861,10 @@
+ 
+     return pkey;
+ }
++#endif
+ 
+ 
++#if !defined(WOLFSSL_NGINX) || !defined(HAVE_LIBOQS)
+ static int
+ ngx_ssl_password_callback(char *buf, int size, int rwflag, void *userdata)
+ {
+@@ -843,7 +891,7 @@
+ 
+     return size;
+ }
+-
++#endif
+ 
+ ngx_int_t
+ ngx_ssl_ciphers(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *ciphers,
+@@ -865,6 +913,14 @@
+ 
+ 
+ ngx_int_t
 +ngx_ssl_set_verify_on(ngx_conf_t *cf, ngx_ssl_t *ssl)
 +{
 +    SSL_CTX_set_verify(ssl->ctx, SSL_VERIFY_PEER, ngx_ssl_verify_callback);
@@ -110,10 +225,11 @@ index 84afecd0..fe7e328e 100644
 +    return NGX_OK;
 +}
 +
- ngx_int_t
++ngx_int_t
  ngx_ssl_client_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *cert,
      ngx_int_t depth)
-@@ -1407,7 +1424,8 @@ ngx_ssl_ecdh_curve(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *name)
+ {
+@@ -1407,7 +1463,8 @@
       * maximum interoperability.
       */
  
@@ -123,7 +239,7 @@ index 84afecd0..fe7e328e 100644
  
      /*
       * OpenSSL 1.0.2+ allows configuring a curve list instead of a single
-@@ -1599,10 +1617,26 @@ static int
+@@ -1599,10 +1656,26 @@
  ngx_ssl_new_client_session(ngx_ssl_conn_t *ssl_conn, ngx_ssl_session_t *sess)
  {
      ngx_connection_t  *c;
@@ -150,7 +266,7 @@ index 84afecd0..fe7e328e 100644
          c->ssl->session = sess;
  
          c->ssl->save_session(c);
-@@ -1674,7 +1708,9 @@ ngx_ssl_get_session(ngx_connection_t *c)
+@@ -1674,7 +1747,9 @@
  {
  #ifdef TLS1_3_VERSION
      if (c->ssl->session) {
@@ -160,7 +276,7 @@ index 84afecd0..fe7e328e 100644
          return c->ssl->session;
      }
  #endif
-@@ -4357,7 +4393,8 @@ ngx_ssl_session_ticket_key_callback(ngx_ssl_conn_t *ssl_conn,
+@@ -4357,7 +4432,8 @@
              return -1;
          }
  
@@ -170,7 +286,7 @@ index 84afecd0..fe7e328e 100644
          if (HMAC_Init_ex(hctx, key[0].hmac_key, size, digest, NULL) != 1) {
              ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "HMAC_Init_ex() failed");
              return -1;
-@@ -4400,7 +4437,8 @@ ngx_ssl_session_ticket_key_callback(ngx_ssl_conn_t *ssl_conn,
+@@ -4400,7 +4476,8 @@
              size = 32;
          }
  
@@ -181,9 +297,8 @@ index 84afecd0..fe7e328e 100644
              ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "HMAC_Init_ex() failed");
              return -1;
 diff --git a/src/event/ngx_event_openssl.h b/src/event/ngx_event_openssl.h
-index 4afdfad4..053999a8 100644
---- a/src/event/ngx_event_openssl.h
-+++ b/src/event/ngx_event_openssl.h
+--- a/src/event/ngx_event_openssl.h	2021-12-22 12:04:40.978789957 -0500
++++ b/src/event/ngx_event_openssl.h	2021-12-21 13:12:44.347836218 -0500
 @@ -14,6 +14,10 @@
  
  #define OPENSSL_SUPPRESS_DEPRECATED
@@ -204,7 +319,7 @@ index 4afdfad4..053999a8 100644
  #define SSL_is_server(s)        (s)->server
  #endif
  
-@@ -191,6 +195,7 @@ ngx_int_t ngx_ssl_connection_certificate(ngx_connection_t *c, ngx_pool_t *pool,
+@@ -191,6 +195,7 @@
  
  ngx_int_t ngx_ssl_ciphers(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *ciphers,
      ngx_uint_t prefer_server_ciphers);
@@ -213,10 +328,9 @@ index 4afdfad4..053999a8 100644
      ngx_str_t *cert, ngx_int_t depth);
  ngx_int_t ngx_ssl_trusted_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl,
 diff --git a/src/event/ngx_event_openssl_stapling.c b/src/event/ngx_event_openssl_stapling.c
-index e3fa8c4e..fb8ba0a7 100644
---- a/src/event/ngx_event_openssl_stapling.c
-+++ b/src/event/ngx_event_openssl_stapling.c
-@@ -379,7 +379,9 @@ ngx_ssl_stapling_issuer(ngx_conf_t *cf, ngx_ssl_t *ssl,
+--- a/src/event/ngx_event_openssl_stapling.c	2021-12-22 12:04:40.978789957 -0500
++++ b/src/event/ngx_event_openssl_stapling.c	2021-12-21 13:12:44.347836218 -0500
+@@ -379,7 +379,9 @@
      for (i = 0; i < n; i++) {
          issuer = sk_X509_value(staple->chain, i);
          if (X509_check_issued(issuer, cert) == X509_V_OK) {
@@ -228,10 +342,9 @@ index e3fa8c4e..fb8ba0a7 100644
  #else
              CRYPTO_add(&issuer->references, 1, CRYPTO_LOCK_X509);
 diff --git a/src/http/modules/ngx_http_proxy_module.c b/src/http/modules/ngx_http_proxy_module.c
-index 7c4061c0..c541b136 100644
---- a/src/http/modules/ngx_http_proxy_module.c
-+++ b/src/http/modules/ngx_http_proxy_module.c
-@@ -4988,7 +4988,9 @@ ngx_http_proxy_set_ssl(ngx_conf_t *cf, ngx_http_proxy_loc_conf_t *plcf)
+--- a/src/http/modules/ngx_http_proxy_module.c	2021-12-22 12:04:40.974789888 -0500
++++ b/src/http/modules/ngx_http_proxy_module.c	2021-12-21 13:12:44.347836218 -0500
+@@ -4988,7 +4988,9 @@
                        "no proxy_ssl_trusted_certificate for proxy_ssl_verify");
              return NGX_ERROR;
          }
@@ -243,10 +356,9 @@ index 7c4061c0..c541b136 100644
                                          &plcf->ssl_trusted_certificate,
                                          plcf->ssl_verify_depth)
 diff --git a/src/http/modules/ngx_http_ssl_module.c b/src/http/modules/ngx_http_ssl_module.c
-index c633f346..2a5c420e 100644
---- a/src/http/modules/ngx_http_ssl_module.c
-+++ b/src/http/modules/ngx_http_ssl_module.c
-@@ -14,7 +14,11 @@ typedef ngx_int_t (*ngx_ssl_variable_handler_pt)(ngx_connection_t *c,
+--- a/src/http/modules/ngx_http_ssl_module.c	2021-12-22 12:04:40.974789888 -0500
++++ b/src/http/modules/ngx_http_ssl_module.c	2021-12-21 13:12:44.347836218 -0500
+@@ -14,7 +14,11 @@
      ngx_pool_t *pool, ngx_str_t *s);
  
  
@@ -258,7 +370,7 @@ index c633f346..2a5c420e 100644
  #define NGX_DEFAULT_ECDH_CURVE  "auto"
  
  #define NGX_HTTP_ALPN_PROTOS    "\x08http/1.1\x08http/1.0\x08http/0.9"
-@@ -845,8 +849,10 @@ ngx_http_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+@@ -845,8 +849,10 @@
          return NGX_CONF_ERROR;
      }
  
@@ -270,9 +382,8 @@ index c633f346..2a5c420e 100644
      if (conf->shm_zone == NULL) {
          conf->shm_zone = prev->shm_zone;
 diff --git a/src/mail/ngx_mail_ssl_module.c b/src/mail/ngx_mail_ssl_module.c
-index 2a1043e6..8012fcce 100644
---- a/src/mail/ngx_mail_ssl_module.c
-+++ b/src/mail/ngx_mail_ssl_module.c
+--- a/src/mail/ngx_mail_ssl_module.c	2021-12-22 12:04:40.966789753 -0500
++++ b/src/mail/ngx_mail_ssl_module.c	2021-12-21 13:12:44.347836218 -0500
 @@ -10,7 +10,11 @@
  #include <ngx_mail.h>
  
@@ -286,10 +397,9 @@ index 2a1043e6..8012fcce 100644
  
  
 diff --git a/src/stream/ngx_stream_proxy_module.c b/src/stream/ngx_stream_proxy_module.c
-index 934e7d8f..c4c0e2e2 100644
---- a/src/stream/ngx_stream_proxy_module.c
-+++ b/src/stream/ngx_stream_proxy_module.c
-@@ -2262,7 +2262,9 @@ ngx_stream_proxy_set_ssl(ngx_conf_t *cf, ngx_stream_proxy_srv_conf_t *pscf)
+--- a/src/stream/ngx_stream_proxy_module.c	2021-12-22 12:04:40.958789618 -0500
++++ b/src/stream/ngx_stream_proxy_module.c	2021-12-21 13:12:44.347836218 -0500
+@@ -2262,7 +2262,9 @@
                        "no proxy_ssl_trusted_certificate for proxy_ssl_verify");
              return NGX_ERROR;
          }
@@ -301,10 +411,9 @@ index 934e7d8f..c4c0e2e2 100644
                                          &pscf->ssl_trusted_certificate,
                                          pscf->ssl_verify_depth)
 diff --git a/src/stream/ngx_stream_ssl_module.c b/src/stream/ngx_stream_ssl_module.c
-index 530fe8b3..77f59d04 100644
---- a/src/stream/ngx_stream_ssl_module.c
-+++ b/src/stream/ngx_stream_ssl_module.c
-@@ -14,7 +14,11 @@ typedef ngx_int_t (*ngx_ssl_variable_handler_pt)(ngx_connection_t *c,
+--- a/src/stream/ngx_stream_ssl_module.c	2021-12-22 12:04:40.958789618 -0500
++++ b/src/stream/ngx_stream_ssl_module.c	2021-12-21 13:12:44.347836218 -0500
+@@ -14,7 +14,11 @@
      ngx_pool_t *pool, ngx_str_t *s);
  
  
@@ -316,6 +425,3 @@ index 530fe8b3..77f59d04 100644
  #define NGX_DEFAULT_ECDH_CURVE  "auto"
  
  
--- 
-2.25.1
-
