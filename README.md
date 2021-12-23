@@ -123,24 +123,13 @@ First, you will need to build the OpenQuantumSafe group's liboqs and their fork 
 When building wolfSSL, you will need to add a couple extra flags:
 
 ```
-./configure --prefix=/usr/local --enable-nginx --with-liboqs --enable-curl
+./configure --prefix=/usr/local --enable-nginx --with-liboqs
 make all
 make check
 sudo make install
 ```
 
-NOTE: `--enable-all` is for curl.
-
-Now, you can continue on with the instructions for building nginx above. Once that is done, you'll need to build curl. You will need curl 7.80.0 or later. After unpacking curl, do the following:
-
-```
-./configure --prefix=/usr/local --with-wolfssl=/usr/local
-make all
-sudo make install
-sudo ldconfig
-```
-
-This will install the curl executable in the location: `/usr/local/bin/curl`.
+Now, you can continue on with the instructions for building nginx above.
 
 Now that all the software is built and installed, you will need to add a section in the nginx.conf file to enable TLS 1.3 and use the correct certificates. Edit `/usr/local/nginx/conf/nginx.conf`. Nginx's install process should have put a default version there. Search for the section with the title `HTTPS server` and replace that section with the following:
 
@@ -176,19 +165,7 @@ sudo /usr/local/nginx/sbin/nginx
 
 Check `/usr/local/nginx/logs/error.log` to see if there were any errors and ensure that `/usr/local/nginx/logs/nginx.pid` exists. It is created upon successful launch of the server daemon process. 
 
-Run curl like this:
-
-```
-/usr/local/bin/curl \
-    --ciphers TLS_AES_256_GCM_SHA384 \
-    --cacert /path/to/falcon_level5_root_cert.pem \
-    --curve P521_KYBER_LEVEL5 \
-    https://<YOUR_IP_ADDRESS>
-```
-
 NOTE: You will need to change the path of the root certificate and use your IP address.
-
-At this point you should see the usual "Welcome to nginx!" webpage. Congratulations, you have just performed a post-quantum connection with the P521_KYBER_LEVEL5 hybrid KEM group, the FALCON Level 5 signature scheme and AES-256.
 
 ## Licensing
 
