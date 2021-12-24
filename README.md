@@ -116,7 +116,7 @@ Testing is only supported on Linux with bash.
 
 ## Post-Quantum Algorithms
 
-Starting with wolfSSL version 5.1.0 and nginx version 1.21.4, You can now enable the integration of liboqs in wolfSSL thus enabling post-quantum algorithms for your HTTPS connections over TLS 1.3. In this case, the web server will be nginx with wolfSSL and the web client will be curl with wolfSSL.
+Starting with wolfSSL version 5.1.0 and nginx version 1.21.4, You can now enable the integration of liboqs in wolfSSL thus enabling post-quantum algorithms for your HTTPS connections over TLS 1.3.
 
 First, you will need to build the OpenQuantumSafe group's liboqs and their fork of OpenSSL to generate the certificate chain that uses the post-quantum FALCON signature scheme. Instructions for that are in wolfSSL git repository's INSTALL file. Note that when you generate your certificates, you will need to add your IP address as a subject alternative name. See here for more details: https://www.openssl.org/docs/manmaster/man5/x509v3_config.html
 
@@ -129,7 +129,7 @@ make check
 sudo make install
 ```
 
-Now, you can continue on with the instructions for building nginx above.
+Now, you can continue on with the instructions for building nginx above, but also apply the nginx-1.21.4-pq.patch patch.
 
 Now that all the software is built and installed, you will need to add a section in the nginx.conf file to enable TLS 1.3 and use the correct certificates. Edit `/usr/local/nginx/conf/nginx.conf`. Nginx's install process should have put a default version there. Search for the section with the title `HTTPS server` and replace that section with the following:
 
@@ -163,7 +163,7 @@ You can now execute the nginx web server by doing the following:
 sudo /usr/local/nginx/sbin/nginx
 ```
 
-Check `/usr/local/nginx/logs/error.log` to see if there were any errors and ensure that `/usr/local/nginx/logs/nginx.pid` exists. It is created upon successful launch of the server daemon process. 
+Check `/usr/local/nginx/logs/error.log` to see if there were any errors and ensure that `/usr/local/nginx/logs/nginx.pid` exists. It is created upon successful launch of the server daemon process.
 
 NOTE: You will need to change the path of the root certificate and use your IP address.
 
