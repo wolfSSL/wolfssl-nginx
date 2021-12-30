@@ -1,0 +1,124 @@
+diff -ur nginx-1.21.4/src/event/ngx_event_openssl.c nginx-1.21.4-pq/src/event/ngx_event_openssl.c
+--- nginx-1.21.4/src/event/ngx_event_openssl.c	2021-12-24 12:15:25.943693122 -0500
++++ nginx-1.21.4-pq/src/event/ngx_event_openssl.c	2021-12-22 15:18:26.681445109 -0500
+@@ -20,10 +20,14 @@
+ 
+ static X509 *ngx_ssl_load_certificate(ngx_pool_t *pool, char **err,
+     ngx_str_t *cert, STACK_OF(X509) **chain);
++ifndef HAVE_LIBOQS
++/* In the case that HAVE_LIBOQS is defined, these functions are unused as we
++ * call SSL_CTX_use_PrivateKey_file() instead. */
+ static EVP_PKEY *ngx_ssl_load_certificate_key(ngx_pool_t *pool, char **err,
+     ngx_str_t *key, ngx_array_t *passwords);
+ static int ngx_ssl_password_callback(char *buf, int size, int rwflag,
+     void *userdata);
++#endif
+ static int ngx_ssl_verify_callback(int ok, X509_STORE_CTX *x509_store);
+ static void ngx_ssl_info_callback(const ngx_ssl_conn_t *ssl_conn, int where,
+     int ret);
+@@ -433,7 +437,9 @@
+ {
+     char            *err;
+     X509            *x509;
++#ifndef HAVE_LIBOQS
+     EVP_PKEY        *pkey;
++#endif
+     STACK_OF(X509)  *chain;
+ 
+     x509 = ngx_ssl_load_certificate(cf->pool, &err, cert, &chain);
+@@ -524,6 +530,20 @@
+     }
+ #endif
+ 
++#ifdef HAVE_LIBOQS
++        if (ngx_get_full_name(cf->pool, (ngx_str_t *) &ngx_cycle->conf_prefix,
++                              key) != NGX_OK) {
++            return NGX_OK;
++        }
++
++        if (SSL_CTX_use_PrivateKey_file(ssl->ctx, (char *)key->data, SSL_FILETYPE_PEM)
++            < 1) {
++            ngx_ssl_error(NGX_LOG_EMERG, ssl->log, 0,
++                          "cannot load certificate key \"%s\"",
++                          key->data);
++            return NGX_ERROR;
++        }
++#else
+     pkey = ngx_ssl_load_certificate_key(cf->pool, &err, key, passwords);
+     if (pkey == NULL) {
+         if (err != NULL) {
+@@ -543,6 +563,7 @@
+     }
+ 
+     EVP_PKEY_free(pkey);
++#endif
+ 
+     return NGX_OK;
+ }
+@@ -554,7 +575,9 @@
+ {
+     char            *err;
+     X509            *x509;
++#ifndef HAVE_LIBOQS
+     EVP_PKEY        *pkey;
++#endif
+     STACK_OF(X509)  *chain;
+ 
+     x509 = ngx_ssl_load_certificate(pool, &err, cert, &chain);
+@@ -595,6 +618,20 @@
+ 
+ #endif
+ 
++#ifdef HAVE_LIBOQS
++    if (ngx_get_full_name(pool, (ngx_str_t *) &ngx_cycle->conf_prefix,
++                          key) != NGX_OK) {
++        return NGX_OK;
++    }
++
++    if (SSL_use_PrivateKey_file(c->ssl->connection, (char *)key->data, SSL_FILETYPE_PEM)
++        < 1) {
++        ngx_ssl_error(NGX_LOG_EMERG, c->log, 0,
++                      "cannot load certificate key \"%s\"",
++                      key->data);
++        return NGX_ERROR;
++    }
++#else
+     pkey = ngx_ssl_load_certificate_key(pool, &err, key, passwords);
+     if (pkey == NULL) {
+         if (err != NULL) {
+@@ -614,6 +651,7 @@
+     }
+ 
+     EVP_PKEY_free(pkey);
++#endif
+ 
+     return NGX_OK;
+ }
+@@ -709,6 +747,7 @@
+ }
+ 
+ 
++#ifndef HAVE_LIBOQS
+ static EVP_PKEY *
+ ngx_ssl_load_certificate_key(ngx_pool_t *pool, char **err,
+     ngx_str_t *key, ngx_array_t *passwords)
+@@ -824,8 +863,10 @@
+ 
+     return pkey;
+ }
++#endif
+ 
+ 
++#ifndef HAVE_LIBOQS
+ static int
+ ngx_ssl_password_callback(char *buf, int size, int rwflag, void *userdata)
+ {
+@@ -852,7 +893,7 @@
+ 
+     return size;
+ }
+-
++#endif
+ 
+ ngx_int_t
+ ngx_ssl_ciphers(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *ciphers,
