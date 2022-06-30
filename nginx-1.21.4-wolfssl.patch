@@ -10,6 +10,15 @@ index 4fb52df7..4fe4b4a7 100644
 +        if [ $WOLFSSL != NONE ]; then
 +            ngx_feature="wolfSSL library in $WOLFSSL"
 +            ngx_feature_path="$WOLFSSL/include/wolfssl $WOLFSSL/include"
++            ngx_feature_incs="#ifdef HAVE_CONFIG_H
++                #include <config.h>
++            #endif
++
++            #ifndef WOLFSSL_USER_SETTINGS
++                #include <wolfssl/options.h>
++            #endif
++            #include <wolfssl/wolfcrypt/settings.h>
++            #include <openssl/ssl.h>"
 +
 +            if [ $NGX_RPATH = YES ]; then
 +                ngx_feature_libs="-R$WOLFSSL/lib -L$WOLFSSL/lib -lwolfssl $NGX_LIBDL"
