@@ -2,7 +2,7 @@ diff --git a/auto/lib/openssl/conf b/auto/lib/openssl/conf
 index 4fb52df7..4fe4b4a7 100644
 --- a/auto/lib/openssl/conf
 +++ b/auto/lib/openssl/conf
-@@ -62,8 +62,33 @@ else
+@@ -62,8 +62,42 @@
          ngx_feature_path=
          ngx_feature_libs="-lssl -lcrypto $NGX_LIBDL $NGX_LIBPTHREAD"
          ngx_feature_test="SSL_CTX_set_options(NULL, 0)"
@@ -221,7 +221,7 @@ diff --git a/src/event/ngx_event_openssl.h b/src/event/ngx_event_openssl.h
 index 4afdfad4..053999a8 100644
 --- a/src/event/ngx_event_openssl.h
 +++ b/src/event/ngx_event_openssl.h
-@@ -14,6 +14,10 @@
+@@ -14,6 +14,17 @@
  
  #define OPENSSL_SUPPRESS_DEPRECATED
  
