@@ -2,7 +2,7 @@ diff --git a/auto/lib/openssl/conf b/auto/lib/openssl/conf
 index 4fb52df7..4fe4b4a7 100644
 --- a/auto/lib/openssl/conf
 +++ b/auto/lib/openssl/conf
-@@ -62,8 +62,33 @@ else
+@@ -62,8 +62,42 @@
          ngx_feature_path=
          ngx_feature_libs="-lssl -lcrypto $NGX_LIBDL $NGX_LIBPTHREAD"
          ngx_feature_test="SSL_CTX_set_options(NULL, 0)"
@@ -10,6 +10,15 @@ index 4fb52df7..4fe4b4a7 100644
 +        if [ $WOLFSSL != NONE ]; then
 +            ngx_feature="wolfSSL library in $WOLFSSL"
 +            ngx_feature_path="$WOLFSSL/include/wolfssl $WOLFSSL/include"
++            ngx_feature_incs="#ifdef HAVE_CONFIG_H
++                #include <config.h>
++            #endif
++
++            #ifndef WOLFSSL_USER_SETTINGS
++                #include <wolfssl/options.h>
++            #endif
++            #include <wolfssl/wolfcrypt/settings.h>
++            #include <openssl/ssl.h>"
 +
 +            if [ $NGX_RPATH = YES ]; then
 +                ngx_feature_libs="-R$WOLFSSL/lib -L$WOLFSSL/lib -lwolfssl $NGX_LIBDL"
@@ -160,6 +169,34 @@ index 84afecd0..fe7e328e 100644
          return c->ssl->session;
      }
  #endif
+@@ -3306,6 +3341,27 @@
+     int         n;
+     ngx_uint_t  level;
+
++#ifdef WOLFSSL_NGINX
++    WOLFSSL_ALERT_HISTORY h;
++
++    if (c && c->ssl && c->ssl->connection) {
++        wolfSSL_get_alert_history(c->ssl->connection, &h);
++        if (h.last_rx.level == alert_warning || h.last_rx.level == alert_fatal ||
++            h.last_tx.level == alert_warning || h.last_tx.level == alert_fatal) {
++            const char *rx_code, *rx_lvl, *tx_code, *tx_lvl;
++            rx_lvl = ((h.last_rx.level == alert_fatal) ? "fatal" : ((h.last_rx.level == alert_warning) ? "warning" : "none"));
++            tx_lvl = ((h.last_tx.level == alert_fatal) ? "fatal" : ((h.last_tx.level == alert_warning) ? "warning" : "none"));
++            rx_code = wolfSSL_alert_desc_string_long(h.last_rx.code);
++            tx_code = wolfSSL_alert_desc_string_long(h.last_tx.code);
++            if (!rx_code) rx_code = "none";
++            if (!tx_code) tx_code = "none";
++            ngx_log_error(NGX_LOG_CRIT, c->log, 0,
++                        "%s (RX alert: level=%s,code=%s, TX alert: level=%s,code=%s)",
++                        text, rx_lvl, rx_code, tx_lvl, tx_code);
++        }
++    }
++#endif
++
+     level = NGX_LOG_CRIT;
+
+     if (sslerr == SSL_ERROR_SYSCALL) {
 @@ -4357,7 +4393,8 @@ ngx_ssl_session_ticket_key_callback(ngx_ssl_conn_t *ssl_conn,
              return -1;
          }
@@ -184,12 +221,19 @@ diff --git a/src/event/ngx_event_openssl.h b/src/event/ngx_event_openssl.h
 index 4afdfad4..053999a8 100644
 --- a/src/event/ngx_event_openssl.h
 +++ b/src/event/ngx_event_openssl.h
-@@ -14,6 +14,10 @@
+@@ -14,6 +14,17 @@
  
  #define OPENSSL_SUPPRESS_DEPRECATED
  
 +#ifdef WOLFSSL_NGINX
-+#include <wolfssl/options.h>
++#ifdef HAVE_CONFIG_H
++    #include <config.h>
++#endif
++
++#ifndef WOLFSSL_USER_SETTINGS
++    #include <wolfssl/options.h>
++#endif
++#include <wolfssl/wolfcrypt/settings.h>
 +#include <openssl/pem.h>
 +#endif
  #include <openssl/ssl.h>
