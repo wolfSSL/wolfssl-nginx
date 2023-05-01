@@ -1,8 +1,8 @@
 diff --git a/auto/lib/openssl/conf b/auto/lib/openssl/conf
-index 4fb52df7..4fe4b4a7 100644
+index 4fb52df..fb8e04c 100644
 --- a/auto/lib/openssl/conf
 +++ b/auto/lib/openssl/conf
-@@ -62,8 +62,33 @@ else
+@@ -62,8 +62,35 @@ else
          ngx_feature_path=
          ngx_feature_libs="-lssl -lcrypto $NGX_LIBDL $NGX_LIBPTHREAD"
          ngx_feature_test="SSL_CTX_set_options(NULL, 0)"
@@ -10,6 +10,8 @@ index 4fb52df7..4fe4b4a7 100644
 +        if [ $WOLFSSL != NONE ]; then
 +            ngx_feature="wolfSSL library in $WOLFSSL"
 +            ngx_feature_path="$WOLFSSL/include/wolfssl $WOLFSSL/include"
++            ngx_feature_incs="#include <wolfssl/options.h
++                              #include <openssl/ssl.h>"
 +
 +            if [ $NGX_RPATH = YES ]; then
 +                ngx_feature_libs="-R$WOLFSSL/lib -L$WOLFSSL/lib -lwolfssl $NGX_LIBDL"
@@ -37,7 +39,7 @@ index 4fb52df7..4fe4b4a7 100644
  
              # FreeBSD port
 diff --git a/auto/options b/auto/options
-index d8b421b0..ef1401d4 100644
+index d8b421b..ef1401d 100644
 --- a/auto/options
 +++ b/auto/options
 @@ -147,6 +147,7 @@ PCRE_JIT=NO
@@ -65,7 +67,7 @@ index d8b421b0..ef1401d4 100644
    --with-openssl-opt=OPTIONS         set additional build options for OpenSSL
  
 diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
-index a281fba9..c36196d7 100644
+index a281fba..c36196d 100644
 --- a/src/event/ngx_event_openssl.c
 +++ b/src/event/ngx_event_openssl.c
 @@ -375,6 +375,10 @@ ngx_ssl_create(ngx_ssl_t *ssl, ngx_uint_t protocols, void *data)
@@ -79,11 +81,10 @@ index a281fba9..c36196d7 100644
      return NGX_OK;
  }
  
-@@ -682,6 +686,14 @@ ngx_ssl_ciphers(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *ciphers,
- }
+@@ -683,6 +687,14 @@ ngx_ssl_ciphers(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *ciphers,
  
  
-+ngx_int_t
+ ngx_int_t
 +ngx_ssl_set_verify_on(ngx_conf_t *cf, ngx_ssl_t *ssl)
 +{
 +    SSL_CTX_set_verify(ssl->ctx, SSL_VERIFY_PEER, ngx_ssl_verify_callback);
@@ -91,9 +92,10 @@ index a281fba9..c36196d7 100644
 +    return NGX_OK;
 +}
 +
- ngx_int_t
++ngx_int_t
  ngx_ssl_client_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *cert,
      ngx_int_t depth)
+ {
 @@ -1124,7 +1136,8 @@ ngx_ssl_ecdh_curve(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *name)
       * maximum interoperability.
       */
@@ -125,7 +127,7 @@ index a281fba9..c36196d7 100644
              ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "HMAC_Init_ex() failed");
              return -1;
 diff --git a/src/event/ngx_event_openssl.h b/src/event/ngx_event_openssl.h
-index abd84ccf..18267f82 100644
+index abd84cc..18267f8 100644
 --- a/src/event/ngx_event_openssl.h
 +++ b/src/event/ngx_event_openssl.h
 @@ -12,6 +12,10 @@
@@ -157,7 +159,7 @@ index abd84ccf..18267f82 100644
      ngx_str_t *cert, ngx_int_t depth);
  ngx_int_t ngx_ssl_trusted_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl,
 diff --git a/src/event/ngx_event_openssl_stapling.c b/src/event/ngx_event_openssl_stapling.c
-index 0bea5e74..aee57868 100644
+index 0bea5e7..aee5786 100644
 --- a/src/event/ngx_event_openssl_stapling.c
 +++ b/src/event/ngx_event_openssl_stapling.c
 @@ -313,7 +313,9 @@ ngx_ssl_stapling_issuer(ngx_conf_t *cf, ngx_ssl_t *ssl,
@@ -172,7 +174,7 @@ index 0bea5e74..aee57868 100644
  #else
              CRYPTO_add(&issuer->references, 1, CRYPTO_LOCK_X509);
 diff --git a/src/http/modules/ngx_http_proxy_module.c b/src/http/modules/ngx_http_proxy_module.c
-index d6a89221..94c1a34d 100644
+index d6a8922..94c1a34 100644
 --- a/src/http/modules/ngx_http_proxy_module.c
 +++ b/src/http/modules/ngx_http_proxy_module.c
 @@ -4306,6 +4306,8 @@ ngx_http_proxy_set_ssl(ngx_conf_t *cf, ngx_http_proxy_loc_conf_t *plcf)
@@ -185,7 +187,7 @@ index d6a89221..94c1a34d 100644
                                          &plcf->ssl_trusted_certificate,
                                          plcf->ssl_verify_depth)
 diff --git a/src/http/modules/ngx_http_ssl_module.c b/src/http/modules/ngx_http_ssl_module.c
-index 9e243ea0..3bef37b5 100644
+index 9e243ea..3bef37b 100644
 --- a/src/http/modules/ngx_http_ssl_module.c
 +++ b/src/http/modules/ngx_http_ssl_module.c
 @@ -14,7 +14,11 @@ typedef ngx_int_t (*ngx_ssl_variable_handler_pt)(ngx_connection_t *c,
@@ -212,7 +214,7 @@ index 9e243ea0..3bef37b5 100644
      if (conf->shm_zone == NULL) {
          conf->shm_zone = prev->shm_zone;
 diff --git a/src/http/ngx_http_request.c b/src/http/ngx_http_request.c
-index 7dd28b8c..0bff124d 100644
+index 7dd28b8..0bff124 100644
 --- a/src/http/ngx_http_request.c
 +++ b/src/http/ngx_http_request.c
 @@ -834,6 +834,12 @@ ngx_http_ssl_handshake_handler(ngx_connection_t *c)
@@ -229,7 +231,7 @@ index 7dd28b8c..0bff124d 100644
  int
  ngx_http_ssl_servername(ngx_ssl_conn_t *ssl_conn, int *ad, void *arg)
 diff --git a/src/mail/ngx_mail_ssl_module.c b/src/mail/ngx_mail_ssl_module.c
-index 45095979..7b7ae03c 100644
+index 4509597..7b7ae03 100644
 --- a/src/mail/ngx_mail_ssl_module.c
 +++ b/src/mail/ngx_mail_ssl_module.c
 @@ -10,7 +10,11 @@
@@ -245,7 +247,7 @@ index 45095979..7b7ae03c 100644
  
  
 diff --git a/src/stream/ngx_stream_proxy_module.c b/src/stream/ngx_stream_proxy_module.c
-index 09493135..b752d2de 100644
+index 0949313..b752d2d 100644
 --- a/src/stream/ngx_stream_proxy_module.c
 +++ b/src/stream/ngx_stream_proxy_module.c
 @@ -2130,6 +2130,8 @@ ngx_stream_proxy_set_ssl(ngx_conf_t *cf, ngx_stream_proxy_srv_conf_t *pscf)
@@ -258,7 +260,7 @@ index 09493135..b752d2de 100644
                                          &pscf->ssl_trusted_certificate,
                                          pscf->ssl_verify_depth)
 diff --git a/src/stream/ngx_stream_ssl_module.c b/src/stream/ngx_stream_ssl_module.c
-index dcc33e1c..e38eba34 100644
+index dcc33e1..e38eba3 100644
 --- a/src/stream/ngx_stream_ssl_module.c
 +++ b/src/stream/ngx_stream_ssl_module.c
 @@ -14,7 +14,11 @@ typedef ngx_int_t (*ngx_ssl_variable_handler_pt)(ngx_connection_t *c,
