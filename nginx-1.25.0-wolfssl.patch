@@ -1,0 +1,239 @@
+diff --git a/auto/lib/openssl/conf b/auto/lib/openssl/conf
+index cfa74cf..77c8572 100644
+--- a/auto/lib/openssl/conf
++++ b/auto/lib/openssl/conf
+@@ -64,8 +64,42 @@ else
+         ngx_feature_path=
+         ngx_feature_libs="-lssl -lcrypto $NGX_LIBDL $NGX_LIBPTHREAD"
+         ngx_feature_test="SSL_CTX_set_options(NULL, 0)"
++
++        if [ $WOLFSSL != NONE ]; then
++            ngx_feature="wolfSSL library in $WOLFSSL"
++            ngx_feature_path="$WOLFSSL/include/wolfssl $WOLFSSL/include"
++            ngx_feature_incs="#ifdef HAVE_CONFIG_H
++                #include <config.h>
++            #endif
++
++            #ifndef WOLFSSL_USER_SETTINGS
++                #include <wolfssl/options.h>
++            #endif
++            #include <wolfssl/wolfcrypt/settings.h>
++            #include <openssl/ssl.h>"
++
++            if [ $NGX_RPATH = YES ]; then
++                ngx_feature_libs="-R$WOLFSSL/lib -L$WOLFSSL/lib -lwolfssl $NGX_LIBDL"
++            else
++                ngx_feature_libs="-L$WOLFSSL/lib -lwolfssl $NGX_LIBDL"
++            fi
++
++            CORE_INCS="$CORE_INCS $WOLFSSL/include/wolfssl"
++            CFLAGS="$CFLAGS -DWOLFSSL_NGINX"
++        fi
++
+         . auto/feature
+ 
++        if [ $WOLFSSL != NONE -a $ngx_found = no ]; then
++cat << END
++
++$0: error: Could not find wolfSSL at $WOLFSSL/include/wolfssl.
++SSL modules require the wolfSSL library.
++
++END
++            exit 1
++        fi
++
+         if [ $ngx_found = no ]; then
+ 
+             # FreeBSD port
+diff --git a/auto/options b/auto/options
+index 552ef83..96f0d8e 100644
+--- a/auto/options
++++ b/auto/options
+@@ -154,6 +154,7 @@ PCRE2=YES
+ USE_OPENSSL=NO
+ USE_OPENSSL_QUIC=NO
+ OPENSSL=NONE
++WOLFSSL=NONE
+ 
+ USE_ZLIB=NO
+ ZLIB=NONE
+@@ -369,6 +370,7 @@ use the \"--with-mail_ssl_module\" option instead"
+         --with-pcre-jit)                 PCRE_JIT=YES               ;;
+         --without-pcre2)                 PCRE2=DISABLED             ;;
+ 
++        --with-wolfssl=*)                WOLFSSL="$value"           ;;
+         --with-openssl=*)                OPENSSL="$value"           ;;
+         --with-openssl-opt=*)            OPENSSL_OPT="$value"       ;;
+ 
+@@ -598,6 +600,7 @@ cat << END
+   --with-libatomic                   force libatomic_ops library usage
+   --with-libatomic=DIR               set path to libatomic_ops library sources
+ 
++  --with-wolfssl=DIR                 set path to wolfSSL headers and library
+   --with-openssl=DIR                 set path to OpenSSL library sources
+   --with-openssl-opt=OPTIONS         set additional build options for OpenSSL
+ 
+diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
+index c38aa27..694896d 100644
+--- a/src/event/ngx_event_openssl.c
++++ b/src/event/ngx_event_openssl.c
+@@ -351,6 +351,8 @@ ngx_ssl_create(ngx_ssl_t *ssl, ngx_uint_t protocols, void *data)
+     }
+ #endif
+ 
++#ifndef WOLFSSL_NGINX
++    /* These override the options set above. No need to call this. */
+ #ifdef SSL_CTX_set_min_proto_version
+     SSL_CTX_set_min_proto_version(ssl->ctx, 0);
+     SSL_CTX_set_max_proto_version(ssl->ctx, TLS1_2_VERSION);
+@@ -360,6 +362,7 @@ ngx_ssl_create(ngx_ssl_t *ssl, ngx_uint_t protocols, void *data)
+     SSL_CTX_set_min_proto_version(ssl->ctx, 0);
+     SSL_CTX_set_max_proto_version(ssl->ctx, TLS1_3_VERSION);
+ #endif
++#endif
+ 
+ #ifdef SSL_OP_NO_COMPRESSION
+     SSL_CTX_set_options(ssl->ctx, SSL_OP_NO_COMPRESSION);
+@@ -1455,7 +1458,8 @@ ngx_ssl_ecdh_curve(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *name)
+      * maximum interoperability.
+      */
+ 
+-#if (defined SSL_CTX_set1_curves_list || defined SSL_CTRL_SET_CURVES_LIST)
++#if (defined SSL_CTX_set1_curves_list || defined SSL_CTRL_SET_CURVES_LIST) || \
++    defined(WOLFSSL_NGINX)
+ 
+     /*
+      * OpenSSL 1.0.2+ allows configuring a curve list instead of a single
+@@ -3358,6 +3362,27 @@ ngx_ssl_connection_error(ngx_connection_t *c, int sslerr, ngx_err_t err,
+     int         n;
+     ngx_uint_t  level;
+ 
++#ifdef WOLFSSL_NGINX
++    WOLFSSL_ALERT_HISTORY h;
++
++    if (c && c->ssl && c->ssl->connection) {
++        wolfSSL_get_alert_history(c->ssl->connection, &h);
++        if (h.last_rx.level == alert_warning || h.last_rx.level == alert_fatal ||
++            h.last_tx.level == alert_warning || h.last_tx.level == alert_fatal) {
++            const char *rx_code, *rx_lvl, *tx_code, *tx_lvl;
++            rx_lvl = ((h.last_rx.level == alert_fatal) ? "fatal" : ((h.last_rx.level == alert_warning) ? "warning" : "none"));
++            tx_lvl = ((h.last_tx.level == alert_fatal) ? "fatal" : ((h.last_tx.level == alert_warning) ? "warning" : "none"));
++            rx_code = wolfSSL_alert_desc_string_long(h.last_rx.code);
++            tx_code = wolfSSL_alert_desc_string_long(h.last_tx.code);
++            if (!rx_code) rx_code = "none";
++            if (!tx_code) tx_code = "none";
++            ngx_log_error(NGX_LOG_CRIT, c->log, 0,
++                        "%s (RX alert: level=%s,code=%s, TX alert: level=%s,code=%s)",
++                        text, rx_lvl, rx_code, tx_lvl, tx_code);
++        }
++    }
++#endif
++
+     level = NGX_LOG_CRIT;
+ 
+     if (sslerr == SSL_ERROR_SYSCALL) {
+@@ -4577,7 +4602,8 @@ ngx_ssl_ticket_key_callback(ngx_ssl_conn_t *ssl_conn,
+             return -1;
+         }
+ 
+-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
++#if OPENSSL_VERSION_NUMBER >= 0x10000000L && \
++    (!defined(WOLFSSL_NGINX) || !defined(HAVE_FIPS))
+         if (HMAC_Init_ex(hctx, key[0].hmac_key, size, digest, NULL) != 1) {
+             ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "HMAC_Init_ex() failed");
+             return -1;
+@@ -4620,7 +4646,8 @@ ngx_ssl_ticket_key_callback(ngx_ssl_conn_t *ssl_conn,
+             size = 32;
+         }
+ 
+-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
++#if OPENSSL_VERSION_NUMBER >= 0x10000000L && \
++    (!defined(WOLFSSL_NGINX) || !defined(HAVE_FIPS))
+         if (HMAC_Init_ex(hctx, key[i].hmac_key, size, digest, NULL) != 1) {
+             ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "HMAC_Init_ex() failed");
+             return -1;
+@@ -5127,6 +5154,14 @@ ngx_ssl_get_curve(ngx_connection_t *c, ngx_pool_t *pool, ngx_str_t *s)
+ 
+ #endif
+ 
++#ifdef WOLFSSL_NGINX
++    s->data = (u_char*)wolfSSL_get_curve_name(c->ssl->connection);
++    if (s->data != NULL) {
++        s->len = ngx_strlen(s->data);
++        return NGX_OK;
++    }
++#endif
++
+     s->len = 0;
+     return NGX_OK;
+ }
+diff --git a/src/event/ngx_event_openssl.h b/src/event/ngx_event_openssl.h
+index c062f91..5a55f08 100644
+--- a/src/event/ngx_event_openssl.h
++++ b/src/event/ngx_event_openssl.h
+@@ -14,6 +14,17 @@
+ 
+ #define OPENSSL_SUPPRESS_DEPRECATED
+ 
++#ifdef WOLFSSL_NGINX
++#ifdef HAVE_CONFIG_H
++    #include <config.h>
++#endif
++
++#ifndef WOLFSSL_USER_SETTINGS
++    #include <wolfssl/options.h>
++#endif
++#include <wolfssl/wolfcrypt/settings.h>
++#include <openssl/pem.h>
++#endif
+ #include <openssl/ssl.h>
+ #include <openssl/err.h>
+ #include <openssl/bn.h>
+diff --git a/src/http/modules/ngx_http_ssl_module.c b/src/http/modules/ngx_http_ssl_module.c
+index d2ca475..516b95c 100644
+--- a/src/http/modules/ngx_http_ssl_module.c
++++ b/src/http/modules/ngx_http_ssl_module.c
+@@ -18,7 +18,11 @@ typedef ngx_int_t (*ngx_ssl_variable_handler_pt)(ngx_connection_t *c,
+     ngx_pool_t *pool, ngx_str_t *s);
+ 
+ 
++#ifndef WOLFSSL_NGINX
+ #define NGX_DEFAULT_CIPHERS     "HIGH:!aNULL:!MD5"
++#else
++#define NGX_DEFAULT_CIPHERS     "ALL"
++#endif
+ #define NGX_DEFAULT_ECDH_CURVE  "auto"
+ 
+ #define NGX_HTTP_ALPN_PROTOS    "\x08http/1.1\x08http/1.0\x08http/0.9"
+diff --git a/src/mail/ngx_mail_ssl_module.c b/src/mail/ngx_mail_ssl_module.c
+index 28737ac..71dd780 100644
+--- a/src/mail/ngx_mail_ssl_module.c
++++ b/src/mail/ngx_mail_ssl_module.c
+@@ -10,7 +10,11 @@
+ #include <ngx_mail.h>
+ 
+ 
++#ifndef WOLFSSL_NGINX
+ #define NGX_DEFAULT_CIPHERS     "HIGH:!aNULL:!MD5"
++#else
++#define NGX_DEFAULT_CIPHERS     "ALL"
++#endif
+ #define NGX_DEFAULT_ECDH_CURVE  "auto"
+ 
+ 
+diff --git a/src/stream/ngx_stream_ssl_module.c b/src/stream/ngx_stream_ssl_module.c
+index 1ba1825..ad727c1 100644
+--- a/src/stream/ngx_stream_ssl_module.c
++++ b/src/stream/ngx_stream_ssl_module.c
+@@ -14,7 +14,11 @@ typedef ngx_int_t (*ngx_ssl_variable_handler_pt)(ngx_connection_t *c,
+     ngx_pool_t *pool, ngx_str_t *s);
+ 
+ 
++#ifndef WOLFSSL_NGINX
+ #define NGX_DEFAULT_CIPHERS     "HIGH:!aNULL:!MD5"
++#else
++#define NGX_DEFAULT_CIPHERS     "ALL"
++#endif
+ #define NGX_DEFAULT_ECDH_CURVE  "auto"
+ 
+ 

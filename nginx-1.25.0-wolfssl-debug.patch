@@ -1,0 +1,31 @@
+diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
+index 694896d..4264650 100644
+--- a/src/event/ngx_event_openssl.c
++++ b/src/event/ngx_event_openssl.c
+@@ -136,6 +136,13 @@ int  ngx_ssl_next_certificate_index;
+ int  ngx_ssl_certificate_name_index;
+ int  ngx_ssl_stapling_index;
+ 
++#ifdef WOLFSSL_NGINX
++void wolfSSL_Log(const int logLevel, const char *const logMessage)
++{
++    (void)logLevel;
++    ngx_log_stderr(0, "wolfSSL: %s", logMessage);
++}
++#endif
+ 
+ ngx_int_t
+ ngx_ssl_init(ngx_log_t *log)
+@@ -165,6 +172,12 @@ ngx_ssl_init(ngx_log_t *log)
+ 
+ #endif
+ 
++#ifdef WOLFSSL_NGINX
++    /* Turn on internal wolfssl debugging to stderr */
++    wolfSSL_SetLoggingCb(wolfSSL_Log);
++    wolfSSL_Debugging_ON();
++#endif
++
+ #ifndef SSL_OP_NO_COMPRESSION
+     {
+     /*
