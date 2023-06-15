@@ -74,7 +74,7 @@ index 552ef83..96f0d8e 100644
    --with-openssl-opt=OPTIONS         set additional build options for OpenSSL
  
 diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
-index c38aa27..694896d 100644
+index c38aa27..3a2f8fb 100644
 --- a/src/event/ngx_event_openssl.c
 +++ b/src/event/ngx_event_openssl.c
 @@ -351,6 +351,8 @@ ngx_ssl_create(ngx_ssl_t *ssl, ngx_uint_t protocols, void *data)
@@ -94,7 +94,52 @@ index c38aa27..694896d 100644
  
  #ifdef SSL_OP_NO_COMPRESSION
      SSL_CTX_set_options(ssl->ctx, SSL_OP_NO_COMPRESSION);
-@@ -1455,7 +1458,8 @@ ngx_ssl_ecdh_curve(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *name)
+@@ -557,6 +560,12 @@ ngx_ssl_connection_certificate(ngx_connection_t *c, ngx_pool_t *pool,
+         return NGX_ERROR;
+     }
+ 
++#ifdef WOLFSSL_NGINX
++    /* Remove current chain */
++    if (sk_X509_NAME_num(chain) > 0)
++        wolfSSL_UnloadCertsKeys(c->ssl->connection);
++#endif
++
+     if (SSL_use_certificate(c->ssl->connection, x509) == 0) {
+         ngx_ssl_error(NGX_LOG_ERR, c->log, 0,
+                       "SSL_use_certificate(\"%s\") failed", cert->data);
+@@ -568,7 +577,9 @@ ngx_ssl_connection_certificate(ngx_connection_t *c, ngx_pool_t *pool,
+     X509_free(x509);
+ 
+ #ifdef SSL_set0_chain
+-
++#ifdef WOLFSSL_NGINX
++#error If SSL_set0_chain is defined then reset this function
++#endif
+     /*
+      * SSL_set0_chain() is only available in OpenSSL 1.0.2+,
+      * but this function is only called via certificate callback,
+@@ -581,7 +592,19 @@ ngx_ssl_connection_certificate(ngx_connection_t *c, ngx_pool_t *pool,
+         sk_X509_pop_free(chain, X509_free);
+         return NGX_ERROR;
+     }
+-
++#endif
++#ifdef WOLFSSL_NGINX
++    {
++        int i;
++        for (i = sk_X509_num(chain) - 1; i > 0; i--) {
++            if (wolfSSL_add0_chain_cert(c->ssl->connection,
++                    sk_X509_value(chain, i)) == 0) {
++                sk_X509_pop_free(chain, X509_free);
++                return NGX_ERROR;
++            }
++        }
++        sk_X509_pop_free(chain, X509_free);
++    }
+ #endif
+ 
+     pkey = ngx_ssl_load_certificate_key(pool, &err, key, passwords);
+@@ -1455,7 +1478,8 @@ ngx_ssl_ecdh_curve(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *name)
       * maximum interoperability.
       */
  
@@ -104,7 +149,7 @@ index c38aa27..694896d 100644
  
      /*
       * OpenSSL 1.0.2+ allows configuring a curve list instead of a single
-@@ -3358,6 +3362,27 @@ ngx_ssl_connection_error(ngx_connection_t *c, int sslerr, ngx_err_t err,
+@@ -3358,6 +3382,27 @@ ngx_ssl_connection_error(ngx_connection_t *c, int sslerr, ngx_err_t err,
      int         n;
      ngx_uint_t  level;
  
@@ -132,7 +177,7 @@ index c38aa27..694896d 100644
      level = NGX_LOG_CRIT;
  
      if (sslerr == SSL_ERROR_SYSCALL) {
-@@ -4577,7 +4602,8 @@ ngx_ssl_ticket_key_callback(ngx_ssl_conn_t *ssl_conn,
+@@ -4577,7 +4622,8 @@ ngx_ssl_ticket_key_callback(ngx_ssl_conn_t *ssl_conn,
              return -1;
          }
  
@@ -142,7 +187,7 @@ index c38aa27..694896d 100644
          if (HMAC_Init_ex(hctx, key[0].hmac_key, size, digest, NULL) != 1) {
              ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "HMAC_Init_ex() failed");
              return -1;
-@@ -4620,7 +4646,8 @@ ngx_ssl_ticket_key_callback(ngx_ssl_conn_t *ssl_conn,
+@@ -4620,7 +4666,8 @@ ngx_ssl_ticket_key_callback(ngx_ssl_conn_t *ssl_conn,
              size = 32;
          }
  
@@ -152,7 +197,7 @@ index c38aa27..694896d 100644
          if (HMAC_Init_ex(hctx, key[i].hmac_key, size, digest, NULL) != 1) {
              ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "HMAC_Init_ex() failed");
              return -1;
-@@ -5127,6 +5154,14 @@ ngx_ssl_get_curve(ngx_connection_t *c, ngx_pool_t *pool, ngx_str_t *s)
+@@ -5127,6 +5174,14 @@ ngx_ssl_get_curve(ngx_connection_t *c, ngx_pool_t *pool, ngx_str_t *s)
  
  #endif
  
