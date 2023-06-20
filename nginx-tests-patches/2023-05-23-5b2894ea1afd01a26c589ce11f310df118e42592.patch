@@ -29,7 +29,7 @@ index 8ae8a5d..84cc746 100644
  	->write_file_expand('nginx.conf', <<'EOF')->plan(38);
  
 diff --git a/lib/Test/Nginx.pm b/lib/Test/Nginx.pm
-index d2e0079..6b13082 100644
+index d2e0079..43d067a 100644
 --- a/lib/Test/Nginx.pm
 +++ b/lib/Test/Nginx.pm
 @@ -29,6 +29,8 @@ use POSIX qw/ waitpid WNOHANG /;
@@ -50,7 +50,24 @@ index d2e0079..6b13082 100644
  	if (Test::More->builder->expected_tests) {
  		local $Test::Nginx::TODO = 'alerts' unless $self->{_alerts};
  
-@@ -383,13 +387,42 @@ sub run(;$) {
+@@ -85,12 +89,15 @@ sub DESTROY {
+ 	if (Test::More->builder->expected_tests) {
+ 		local $Test::Nginx::TODO;
+ 		my $errors = $self->read_file('error.log');
+-		$errors = join "\n", $errors =~ /.+Sanitizer.+/gm;
++		$errors = join "\n", $errors =~ /.+(ERROR: AddressSanitizer)|(Direct leak of).+/gm;
+ 		Test::More::is($errors, '', 'no sanitizer errors');
+ 	}
+ 
+ 	if ($ENV{TEST_NGINX_CATLOG}) {
+ 		system("cat $self->{_testdir}/error.log");
++		if ($ENV{TEST_NGINX_VALGRIND}) {
++			system("cat $self->{_testdir}/valgrind.log");
++		}
+ 	}
+ 	if (not $ENV{TEST_NGINX_LEAVE}) {
+ 		eval { rmtree($self->{_testdir}); };
+@@ -383,13 +390,42 @@ sub run(;$) {
  	my $pid = fork();
  	die "Unable to fork(): $!\n" unless defined $pid;
  
@@ -96,7 +113,7 @@ index d2e0079..6b13082 100644
  	}
  
  	# wait for nginx to start
-@@ -473,7 +506,7 @@ sub waitforfile($;$) {
+@@ -473,7 +509,7 @@ sub waitforfile($;$) {
  	# wait for file to appear
  	# or specified process to exit
  
