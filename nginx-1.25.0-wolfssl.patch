@@ -1,8 +1,8 @@
 diff --git a/auto/lib/openssl/conf b/auto/lib/openssl/conf
-index cfa74cf..77c8572 100644
+index cfa74cf..bb57e33 100644
 --- a/auto/lib/openssl/conf
 +++ b/auto/lib/openssl/conf
-@@ -64,8 +64,42 @@ else
+@@ -64,8 +64,39 @@ else
          ngx_feature_path=
          ngx_feature_libs="-lssl -lcrypto $NGX_LIBDL $NGX_LIBPTHREAD"
          ngx_feature_test="SSL_CTX_set_options(NULL, 0)"
@@ -10,10 +10,7 @@ index cfa74cf..77c8572 100644
 +        if [ $WOLFSSL != NONE ]; then
 +            ngx_feature="wolfSSL library in $WOLFSSL"
 +            ngx_feature_path="$WOLFSSL/include/wolfssl $WOLFSSL/include"
-+            ngx_feature_incs="#ifdef HAVE_CONFIG_H
-+                #include <config.h>
-+            #endif
-+
++            ngx_feature_incs="
 +            #ifndef WOLFSSL_USER_SETTINGS
 +                #include <wolfssl/options.h>
 +            #endif
@@ -74,7 +71,7 @@ index 552ef83..96f0d8e 100644
    --with-openssl-opt=OPTIONS         set additional build options for OpenSSL
  
 diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
-index c38aa27..3a2f8fb 100644
+index c38aa27..e3c7755 100644
 --- a/src/event/ngx_event_openssl.c
 +++ b/src/event/ngx_event_openssl.c
 @@ -351,6 +351,8 @@ ngx_ssl_create(ngx_ssl_t *ssl, ngx_uint_t protocols, void *data)
@@ -139,17 +136,7 @@ index c38aa27..3a2f8fb 100644
  #endif
  
      pkey = ngx_ssl_load_certificate_key(pool, &err, key, passwords);
-@@ -1455,7 +1478,8 @@ ngx_ssl_ecdh_curve(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *name)
-      * maximum interoperability.
-      */
- 
--#if (defined SSL_CTX_set1_curves_list || defined SSL_CTRL_SET_CURVES_LIST)
-+#if (defined SSL_CTX_set1_curves_list || defined SSL_CTRL_SET_CURVES_LIST) || \
-+    defined(WOLFSSL_NGINX)
- 
-     /*
-      * OpenSSL 1.0.2+ allows configuring a curve list instead of a single
-@@ -3358,6 +3382,27 @@ ngx_ssl_connection_error(ngx_connection_t *c, int sslerr, ngx_err_t err,
+@@ -3358,6 +3381,27 @@ ngx_ssl_connection_error(ngx_connection_t *c, int sslerr, ngx_err_t err,
      int         n;
      ngx_uint_t  level;
  
@@ -177,7 +164,7 @@ index c38aa27..3a2f8fb 100644
      level = NGX_LOG_CRIT;
  
      if (sslerr == SSL_ERROR_SYSCALL) {
-@@ -4577,7 +4622,8 @@ ngx_ssl_ticket_key_callback(ngx_ssl_conn_t *ssl_conn,
+@@ -4577,7 +4621,8 @@ ngx_ssl_ticket_key_callback(ngx_ssl_conn_t *ssl_conn,
              return -1;
          }
  
@@ -187,7 +174,7 @@ index c38aa27..3a2f8fb 100644
          if (HMAC_Init_ex(hctx, key[0].hmac_key, size, digest, NULL) != 1) {
              ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "HMAC_Init_ex() failed");
              return -1;
-@@ -4620,7 +4666,8 @@ ngx_ssl_ticket_key_callback(ngx_ssl_conn_t *ssl_conn,
+@@ -4620,7 +4665,8 @@ ngx_ssl_ticket_key_callback(ngx_ssl_conn_t *ssl_conn,
              size = 32;
          }
  
@@ -197,7 +184,7 @@ index c38aa27..3a2f8fb 100644
          if (HMAC_Init_ex(hctx, key[i].hmac_key, size, digest, NULL) != 1) {
              ngx_ssl_error(NGX_LOG_ALERT, c->log, 0, "HMAC_Init_ex() failed");
              return -1;
-@@ -5127,6 +5174,14 @@ ngx_ssl_get_curve(ngx_connection_t *c, ngx_pool_t *pool, ngx_str_t *s)
+@@ -5127,6 +5173,14 @@ ngx_ssl_get_curve(ngx_connection_t *c, ngx_pool_t *pool, ngx_str_t *s)
  
  #endif
  
