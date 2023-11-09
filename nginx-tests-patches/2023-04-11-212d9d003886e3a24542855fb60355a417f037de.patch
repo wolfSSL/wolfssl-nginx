@@ -1,0 +1,425 @@
+diff --git a/README b/README
+index f43c586..bd259ca 100644
+--- a/README
++++ b/README
+@@ -52,4 +52,12 @@ TEST_NGINX_GLOBALS_STREAM
+ 
+     Sets additional directives in stream context.
+ 
++TEST_NGINX_GDBSERVER
++
++    Run Nginx under a gdbserver.
++
++TEST_NGINX_VALGRIND
++
++    Run Nginx under valgrind.
++
+ Happy testing!
+diff --git a/lib/Test/Nginx.pm b/lib/Test/Nginx.pm
+index a74fbf1..09855e5 100644
+--- a/lib/Test/Nginx.pm
++++ b/lib/Test/Nginx.pm
+@@ -29,6 +29,8 @@ use POSIX qw/ waitpid WNOHANG /;
+ use Socket qw/ CRLF /;
+ use Test::More qw//;
+ 
++use Proc::Find qw(find_proc proc_exists);
++
+ ###############################################################################
+ 
+ our $NGINX = defined $ENV{TEST_NGINX_BINARY} ? $ENV{TEST_NGINX_BINARY}
+@@ -64,6 +66,8 @@ sub DESTROY {
+ 	$self->stop();
+ 	$self->stop_daemons();
+ 
++print('error logs at: '.$self->{_testdir}."\n");
++
+ 	if (Test::More->builder->expected_tests) {
+ 		local $Test::Nginx::TODO = 'alerts' unless $self->{_alerts};
+ 
+@@ -85,12 +89,15 @@ sub DESTROY {
+ 	if (Test::More->builder->expected_tests) {
+ 		local $Test::Nginx::TODO;
+ 		my $errors = $self->read_file('error.log');
+-		$errors = join "\n", $errors =~ /.+Sanitizer.+/gm;
++		$errors = join "\n", $errors =~ /.+(ERROR: AddressSanitizer)|(Direct leak of).+/gm;
+ 		Test::More::is($errors, '', 'no sanitizer errors');
+ 	}
+ 
+ 	if ($ENV{TEST_NGINX_CATLOG}) {
+ 		system("cat $self->{_testdir}/error.log");
++		if ($ENV{TEST_NGINX_VALGRIND}) {
++			system("cat $self->{_testdir}/valgrind.log");
++		}
+ 	}
+ 	if (not $ENV{TEST_NGINX_LEAVE}) {
+ 		eval { rmtree($self->{_testdir}); };
+@@ -336,13 +343,42 @@ sub run(;$) {
+ 	my $pid = fork();
+ 	die "Unable to fork(): $!\n" unless defined $pid;
+ 
++        if ($ENV{TEST_NGINX_GDBSERVER}) {
++                for (1 .. 300) {
++                        last unless proc_exists(name=>'gdbserver');
++                        select undef, undef, undef, 0.1;
++                }
++        }
++ 
++
+ 	if ($pid == 0) {
+ 		my @globals = $self->{_test_globals} ?
+ 			() : ('-g', "pid $testdir/nginx.pid; "
+ 			. "error_log $testdir/error.log debug;");
+-		exec($NGINX, '-p', "$testdir/", '-c', 'nginx.conf',
+-			'-e', 'error.log', @globals)
+-			or die "Unable to exec(): $!\n";
++                if ($ENV{TEST_NGINX_CATLOG}) {
++                        print { *STDERR } "\n";
++                        print { *STDERR } $NGINX . ' ';
++                        print { *STDERR } '-p' . ' ';
++                        print { *STDERR } $testdir . ' ';
++                        print { *STDERR } '-c' . ' ';
++                        print { *STDERR } 'nginx.conf' . ' ';
++                        print { *STDERR } @globals;
++                        print { *STDERR } "\n";
++                }
++                if ($ENV{TEST_NGINX_VALGRIND}) {
++                        exec('valgrind', '--leak-check=full', '--log-file=' . "$testdir/valgrind.log", $NGINX, '-p', "$testdir/", '-c', 'nginx.conf', '-e', '-error.log', @globals),
++                                or die "Unable to exec(): $!\n";
++                }
++                elsif ($ENV{TEST_NGINX_GDBSERVER}) {
++                        exec('gdbserver', ':2345', $NGINX, '-p', "$testdir/", '-c', 'nginx.conf', '-e', 'error.log', @globals),
++                                or die "Unable to exec(): $!\n";
++                }
++                else {
++			exec($NGINX, '-p', "$testdir/", '-c', 'nginx.conf',
++				'-e', 'error.log', @globals)
++				or die "Unable to exec(): $!\n";
++                }
++
+ 	}
+ 
+ 	# wait for nginx to start
+@@ -426,7 +462,7 @@ sub waitforfile($;$) {
+ 	# wait for file to appear
+ 	# or specified process to exit
+ 
+-	for (1 .. 50) {
++	for (1 .. 300) {
+ 		return 1 if -e $file;
+ 		return 0 if $exited;
+ 		$exited = waitpid($pid, WNOHANG) != 0 if $pid;
+diff --git a/ssl_certificates.t b/ssl_certificates.t
+index a6ec6ad..c9d1ef4 100644
+--- a/ssl_certificates.t
++++ b/ssl_certificates.t
+@@ -47,23 +47,16 @@ events {
+ http {
+     %%TEST_GLOBALS_HTTP%%
+ 
+-    ssl_certificate_key rsa.key;
+-    ssl_certificate rsa.crt;
+     ssl_ciphers DEFAULT:ECCdraft;
+ 
+     server {
+         listen       127.0.0.1:8080 ssl;
+         server_name  localhost;
+ 
+-        ssl_certificate_key ec.key;
+-        ssl_certificate ec.crt;
+-
+-        ssl_certificate_key rsa.key;
+-        ssl_certificate rsa.crt;
+-
+         ssl_certificate_key rsa.key;
+         ssl_certificate rsa.crt;
+     }
++    #### wolfSSL does not support using multiple certs on one object currently
+ }
+ 
+ EOF
+@@ -91,12 +84,11 @@ foreach my $name ('ec', 'rsa') {
+ 		or die "Can't create certificate for $name: $!\n";
+ }
+ 
+-$t->run()->plan(2);
++$t->run()->plan(1);
+ 
+ ###############################################################################
+ 
+ like(get_cert('RSA'), qr/CN=rsa/, 'ssl cert RSA');
+-like(get_cert('ECDSA'), qr/CN=ec/, 'ssl cert ECDSA');
+ 
+ ###############################################################################
+ 
+diff --git a/ssl_curve.t b/ssl_curve.t
+index 3b6d27d..b3a32b3 100644
+--- a/ssl_curve.t
++++ b/ssl_curve.t
+@@ -82,7 +82,7 @@ $t->try_run('no $ssl_curve')->plan(1);
+ 
+ ###############################################################################
+ 
+-like(get('/curve'), qr/^prime256v1 /m, 'ssl curve');
++like(get('/curve'), qr/^SECP256R1/m, 'ssl curve');
+ 
+ ###############################################################################
+ 
+diff --git a/ssl_stapling.t b/ssl_stapling.t
+index 06efca1..71d4e7a 100644
+--- a/ssl_stapling.t
++++ b/ssl_stapling.t
+@@ -53,18 +53,14 @@ http {
+     ssl_stapling on;
+     ssl_trusted_certificate trusted.crt;
+ 
+-    ssl_certificate ec-end-int.crt;
+-    ssl_certificate_key ec-end.key;
+-
+-    ssl_certificate end-int.crt;
+-    ssl_certificate_key end.key;
+-
+     ssl_ciphers DEFAULT:ECCdraft;
+ 
+     server {
+         listen       127.0.0.1:8443 ssl;
+         listen       127.0.0.1:8080;
+         server_name  localhost;
++    ssl_certificate end-int.crt;
++    ssl_certificate_key end.key;
+     }
+ 
+     server {
+@@ -72,6 +68,8 @@ http {
+         server_name  localhost;
+ 
+         ssl_stapling_responder http://127.0.0.1:8081/;
++    ssl_certificate end-int.crt;
++    ssl_certificate_key end.key;
+     }
+ 
+     server {
+@@ -79,32 +77,33 @@ http {
+         server_name  localhost;
+ 
+         ssl_stapling_verify on;
++    ssl_certificate end-int.crt;
++    ssl_certificate_key end.key;
+     }
+ 
+     server {
+         listen       127.0.0.1:8446 ssl;
+         server_name  localhost;
+ 
+-        ssl_certificate ec-end.crt;
+-        ssl_certificate_key ec-end.key;
++    ssl_certificate end-int.crt;
++    ssl_certificate_key end.key;
+     }
+ 
+     server {
+         listen       127.0.0.1:8447 ssl;
+         server_name  localhost;
+ 
+-        ssl_certificate end-int.crt;
+-        ssl_certificate_key end.key;
+-
+         ssl_stapling_file %%TESTDIR%%/resp.der;
++    ssl_certificate end-int.crt;
++    ssl_certificate_key end.key;
+     }
+ 
+     server {
+         listen       127.0.0.1:8448 ssl;
+         server_name  localhost;
+ 
+-        ssl_certificate ec-end-int.crt;
+-        ssl_certificate_key ec-end.key;
++    ssl_certificate end-int.crt;
++    ssl_certificate_key end.key;
+ 
+         ssl_stapling_file %%TESTDIR%%/ec-resp.der;
+     }
+@@ -114,7 +113,73 @@ http {
+         server_name  localhost;
+ 
+         ssl_stapling_responder http://127.0.0.1:8080/;
++    ssl_certificate end-int.crt;
++    ssl_certificate_key end.key;
++    }
++
++#### ECC servers
++
++    server {
++        listen       127.0.0.1:8453 ssl;
++        server_name  localhost;
++    ssl_certificate ec-end-int.crt;
++    ssl_certificate_key ec-end.key;
+     }
++
++    server {
++        listen       127.0.0.1:8454 ssl;
++        server_name  localhost;
++
++        ssl_stapling_responder http://127.0.0.1:8081/;
++    ssl_certificate ec-end-int.crt;
++    ssl_certificate_key ec-end.key;
++    }
++
++    server {
++        listen       127.0.0.1:8455 ssl;
++        server_name  localhost;
++
++        ssl_stapling_verify on;
++    ssl_certificate ec-end-int.crt;
++    ssl_certificate_key ec-end.key;
++    }
++
++    server {
++        listen       127.0.0.1:8456 ssl;
++        server_name  localhost;
++
++    ssl_certificate ec-end.crt;
++    ssl_certificate_key ec-end.key;
++    }
++
++    server {
++        listen       127.0.0.1:8457 ssl;
++        server_name  localhost;
++
++        ssl_stapling_file %%TESTDIR%%/resp.der;
++    ssl_certificate ec-end-int.crt;
++    ssl_certificate_key ec-end.key;
++    }
++
++    server {
++        listen       127.0.0.1:8458 ssl;
++        server_name  localhost;
++
++    ssl_certificate ec-end-int.crt;
++    ssl_certificate_key ec-end.key;
++
++        ssl_stapling_file %%TESTDIR%%/ec-resp.der;
++    }
++
++    server {
++        listen       127.0.0.1:8459 ssl;
++        server_name  localhost;
++
++        ssl_stapling_responder http://127.0.0.1:8080/;
++    ssl_certificate ec-end-int.crt;
++    ssl_certificate_key ec-end.key;
++    }
++
+ }
+ 
+ EOF
+@@ -249,12 +314,12 @@ $t->waitforsocket("127.0.0.1:" . port(8081));
+ my $version = get_version();
+ 
+ staple(8443, 'RSA');
+-staple(8443, 'ECDSA');
++staple(8453, 'ECDSA');
+ staple(8444, 'RSA');
+-staple(8444, 'ECDSA');
+-staple(8445, 'ECDSA');
+-staple(8446, 'ECDSA');
+-staple(8449, 'ECDSA');
++staple(8454, 'ECDSA');
++staple(8455, 'ECDSA');
++staple(8456, 'ECDSA');
++staple(8459, 'ECDSA');
+ 
+ sleep 1;
+ 
+@@ -264,8 +329,7 @@ TODO: {
+ local $TODO = 'broken TLSv1.3 sigalgs in LibreSSL'
+ 	if $t->has_module('LibreSSL') && $version > 0x303;
+ 
+-ok(staple(8443, 'ECDSA'), 'staple success');
+-
++ok(staple(8453, 'ECDSA'), 'staple success');
+ }
+ 
+ ok(!staple(8444, 'RSA'), 'responder revoked');
+@@ -274,18 +338,18 @@ TODO: {
+ local $TODO = 'broken TLSv1.3 sigalgs in LibreSSL'
+ 	if $t->has_module('LibreSSL') && $version > 0x303;
+ 
+-ok(staple(8444, 'ECDSA'), 'responder success');
++ok(staple(8454, 'ECDSA'), 'responder success');
+ 
+ }
+ 
+-ok(!staple(8445, 'ECDSA'), 'verify - root not trusted');
++ok(!staple(8455, 'ECDSA'), 'verify - root not trusted');
+ 
+-ok(staple(8446, 'ECDSA', "$d/int.crt"), 'cert store');
++ok(staple(8456, 'ECDSA', "$d/int.crt"), 'cert store');
+ 
+ is(staple(8447, 'RSA'), '1 1', 'file revoked');
+-is(staple(8448, 'ECDSA'), '1 0', 'file success');
++is(staple(8458, 'ECDSA'), '1 0', 'file success');
+ 
+-ok(!staple(8449, 'ECDSA'), 'ocsp error');
++ok(!staple(8459, 'ECDSA'), 'ocsp error');
+ 
+ TODO: {
+ local $TODO = 'broken TLSv1.3 sigalgs in LibreSSL'
+diff --git a/ssl_verify_depth.t b/ssl_verify_depth.t
+index 4e010cc..b8d1a39 100644
+--- a/ssl_verify_depth.t
++++ b/ssl_verify_depth.t
+@@ -47,7 +47,7 @@ http {
+     ssl_certificate_key localhost.key;
+ 
+     ssl_verify_client on;
+-    ssl_client_certificate root-int.crt;
++    ssl_client_certificate root.crt;
+ 
+     add_header X-Client $ssl_client_s_dn always;
+     add_header X-Verify $ssl_client_verify always;
+@@ -101,6 +101,7 @@ commonName = supplied
+ 
+ [ myca_extensions ]
+ basicConstraints = critical,CA:TRUE
++keyUsage = keyCertSign
+ EOF
+ 
+ foreach my $name ('root', 'localhost') {
+@@ -136,6 +137,9 @@ system("openssl ca -batch -config $d/ca.conf "
+ 
+ $t->write_file('root-int.crt', $t->read_file('root.crt')
+ 	. $t->read_file('int.crt'));
++$t->write_file('end-int.crt', $t->read_file('end.crt')
++	. $t->read_file('int.crt'));
++$t->write_file('end-int.key', $t->read_file('end.key'));
+ 
+ $t->write_file('t', '');
+ $t->run();
+@@ -151,7 +155,7 @@ $t->run();
+ 
+ like(get(8080, 'root'), qr/SUCCESS/, 'verify depth 0 - root');
+ like(get(8080, 'int'),  qr/FAI|SUC/, 'verify depth 0 - no int');
+-like(get(8080, 'end'),  qr/FAILED/,  'verify depth 0 - no end');
++like(get(8080, 'end-int'),  qr/FAILED/,  'verify depth 0 - no end');
+ 
+ # with verify depth 1 (the default), one signature is
+ # expected to be checked, so certificates directly signed
+@@ -163,14 +167,14 @@ like(get(8080, 'end'),  qr/FAILED/,  'verify depth 0 - no end');
+ 
+ like(get(8081, 'root'), qr/SUCCESS/, 'verify depth 1 - root');
+ like(get(8081, 'int'),  qr/SUCCESS/, 'verify depth 1 - int');
+-like(get(8081, 'end'),  qr/FAI|SUC/, 'verify depth 1 - no end');
++like(get(8081, 'end-int'),  qr/FAI|SUC/, 'verify depth 1 - no end');
+ 
+ # with verify depth 2 it is also possible to validate up to two signatures,
+ # so chains with one intermediate certificate are allowed
+ 
+ like(get(8082, 'root'), qr/SUCCESS/, 'verify depth 2 - root');
+ like(get(8082, 'int'),  qr/SUCCESS/, 'verify depth 2 - int');
+-like(get(8082, 'end'),  qr/SUCCESS/, 'verify depth 2 - end');
++like(get(8082, 'end-int'),  qr/SUCCESS/, 'verify depth 2 - end');
+ 
+ ###############################################################################
+ 
