@@ -5,8 +5,8 @@ diff -ur nginx-1.21.4/src/event/ngx_event_openssl.c nginx-1.21.4-pq/src/event/ng
  
  static X509 *ngx_ssl_load_certificate(ngx_pool_t *pool, char **err,
      ngx_str_t *cert, STACK_OF(X509) **chain);
-+ifndef HAVE_LIBOQS
-+/* In the case that HAVE_LIBOQS is defined, these functions are unused as we
++#ifndef HAVE_DILITHIUM
++/* In the case that HAVE_DILITHIUM is defined, these functions are unused as we
 + * call SSL_CTX_use_PrivateKey_file() instead. */
  static EVP_PKEY *ngx_ssl_load_certificate_key(ngx_pool_t *pool, char **err,
      ngx_str_t *key, ngx_array_t *passwords);
@@ -20,7 +20,7 @@ diff -ur nginx-1.21.4/src/event/ngx_event_openssl.c nginx-1.21.4-pq/src/event/ng
  {
      char            *err;
      X509            *x509;
-+#ifndef HAVE_LIBOQS
++#ifndef HAVE_DILITHIUM
      EVP_PKEY        *pkey;
 +#endif
      STACK_OF(X509)  *chain;
@@ -30,7 +30,7 @@ diff -ur nginx-1.21.4/src/event/ngx_event_openssl.c nginx-1.21.4-pq/src/event/ng
      }
  #endif
  
-+#ifdef HAVE_LIBOQS
++#ifdef HAVE_DILITHIUM
 +        if (ngx_get_full_name(cf->pool, (ngx_str_t *) &ngx_cycle->conf_prefix,
 +                              key) != NGX_OK) {
 +            return NGX_OK;
@@ -59,7 +59,7 @@ diff -ur nginx-1.21.4/src/event/ngx_event_openssl.c nginx-1.21.4-pq/src/event/ng
  {
      char            *err;
      X509            *x509;
-+#ifndef HAVE_LIBOQS
++#ifndef HAVE_DILITHIUM
      EVP_PKEY        *pkey;
 +#endif
      STACK_OF(X509)  *chain;
@@ -69,7 +69,7 @@ diff -ur nginx-1.21.4/src/event/ngx_event_openssl.c nginx-1.21.4-pq/src/event/ng
  
  #endif
  
-+#ifdef HAVE_LIBOQS
++#ifdef HAVE_DILITHIUM
 +    if (ngx_get_full_name(pool, (ngx_str_t *) &ngx_cycle->conf_prefix,
 +                          key) != NGX_OK) {
 +        return NGX_OK;
@@ -98,7 +98,7 @@ diff -ur nginx-1.21.4/src/event/ngx_event_openssl.c nginx-1.21.4-pq/src/event/ng
  }
  
  
-+#ifndef HAVE_LIBOQS
++#ifndef HAVE_DILITHIUM
  static EVP_PKEY *
  ngx_ssl_load_certificate_key(ngx_pool_t *pool, char **err,
      ngx_str_t *key, ngx_array_t *passwords)
@@ -109,7 +109,7 @@ diff -ur nginx-1.21.4/src/event/ngx_event_openssl.c nginx-1.21.4-pq/src/event/ng
 +#endif
  
  
-+#ifndef HAVE_LIBOQS
++#ifndef HAVE_DILITHIUM
  static int
  ngx_ssl_password_callback(char *buf, int size, int rwflag, void *userdata)
  {

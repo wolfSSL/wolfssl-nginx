@@ -116,14 +116,14 @@ Testing is only supported on Linux with bash.
 
 ## Post-Quantum Algorithms
 
-Starting with wolfSSL version 5.1.0 and nginx version 1.21.4, You can now enable the integration of liboqs in wolfSSL thus enabling post-quantum algorithms for your HTTPS connections over TLS 1.3.
+You can now enable the use of post-quantum algorithms for your HTTPS connections over TLS 1.3.
 
-First, you will need to build the OpenQuantumSafe group's liboqs and their fork of OpenSSL to generate the certificate chain that uses the post-quantum FALCON signature scheme. Instructions for that are in wolfSSL git repository's INSTALL file. Note that when you generate your certificates, you will need to add your IP address as a subject alternative name. See here for more details: https://www.openssl.org/docs/manmaster/man5/x509v3_config.html
+First, you will need to build the OpenQuantumSafe group's liboqs and their fork of OpenSSL to generate the certificate chain that uses ML-DSA signature scheme. Alternatively, for your convenience, we have already generated some test certificates and they can be found in the wolfSSL OSP repo in the oqs directory.
 
 When building wolfSSL, you will need to add a couple extra flags:
 
 ```
-./configure --prefix=/usr/local --enable-nginx --with-liboqs
+./configure --prefix=/usr/local --enable-nginx --enable-kyber --enable-dilithium
 make all
 make check
 sudo make install
@@ -138,8 +138,8 @@ Now that all the software is built and installed, you will need to add a section
         listen                    443 ssl;
         server_name               localhost;
 
-        ssl_certificate           /path/to/falcon_level5_entity_cert.pem;
-        ssl_certificate_key       /path/to/falcon_level5_entity_key.pem;
+        ssl_certificate           /path/to/osp/oqs/mldsa87_entity_cert.pem
+        ssl_certificate_key       /path/to/osp/oqs/mldsa87_entity_key.pem
 
         ssl_session_cache         shared:SSL:1m;
         ssl_session_timeout       5m;
