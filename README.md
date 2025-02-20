@@ -116,7 +116,16 @@ Testing is only supported on Linux with bash.
 
 ## Post-Quantum Algorithms
 
-You can now enable the use of post-quantum algorithms for your HTTPS connections over TLS 1.3.
+You can now enable the use of post-quantum algorithms for your HTTPS connections over TLS 1.3. As of the writing of this passage, there has been a lot of flux within the specifications of post-quantum algorithms which has affected backwards compatibility. To that end, here are the version of software that were used to generate these instructions:
+
+- https://github.com/wolfSSL/wolfssl.git at 539056e7
+- https://github.com/anhu/curl.git at branch wolfssl_pq_rename
+- https://github.com/wolfSSL/osp.git at 07072fb2
+- https://github.com:anhu/wolfssl-nginx.git at branch pq-fixup
+- https://nginx.org/download/nginx-1.21.4.tar.gz
+
+NOTE: for curl and wolfssl-nginx the upstream repo likely already have these
+      branches merged in.
 
 First, you will need to build the OpenQuantumSafe group's liboqs and their fork of OpenSSL to generate the certificate chain that uses ML-DSA signature scheme. Alternatively, for your convenience, we have already generated some test certificates and they can be found in the wolfSSL OSP repo in the oqs directory.
 
