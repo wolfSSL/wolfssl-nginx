@@ -1,8 +1,8 @@
 diff --git a/README b/README
-index f43c586..bd259ca 100644
+index f43c586..0441316 100644
 --- a/README
 +++ b/README
-@@ -52,4 +52,12 @@ TEST_NGINX_GLOBALS_STREAM
+@@ -52,4 +52,16 @@ TEST_NGINX_GLOBALS_STREAM
  
      Sets additional directives in stream context.
  
@@ -13,6 +13,10 @@ index f43c586..bd259ca 100644
 +TEST_NGINX_VALGRIND
 +
 +    Run Nginx under valgrind.
++
++TEST_NGINX_RR
++
++    Run Nginx under rr record for deterministic debugging.
 +
  Happy testing!
 diff --git a/grpc_ssl.t b/grpc_ssl.t
@@ -29,7 +33,7 @@ index 8ae8a5d..84cc746 100644
  	->write_file_expand('nginx.conf', <<'EOF')->plan(38);
  
 diff --git a/lib/Test/Nginx.pm b/lib/Test/Nginx.pm
-index d2e0079..43d067a 100644
+index d2e0079..56a8949 100644
 --- a/lib/Test/Nginx.pm
 +++ b/lib/Test/Nginx.pm
 @@ -29,6 +29,8 @@ use POSIX qw/ waitpid WNOHANG /;
@@ -67,7 +71,7 @@ index d2e0079..43d067a 100644
  	}
  	if (not $ENV{TEST_NGINX_LEAVE}) {
  		eval { rmtree($self->{_testdir}); };
-@@ -383,13 +390,42 @@ sub run(;$) {
+@@ -383,13 +390,46 @@ sub run(;$) {
  	my $pid = fork();
  	die "Unable to fork(): $!\n" unless defined $pid;
  
@@ -104,6 +108,10 @@ index d2e0079..43d067a 100644
 +                        exec('gdbserver', ':2345', $NGINX, '-p', "$testdir/", '-c', 'nginx.conf', '-e', 'error.log', @globals),
 +                                or die "Unable to exec(): $!\n";
 +                }
++                elsif ($ENV{TEST_NGINX_RR}) {
++                        exec('rr', 'record', $NGINX, '-p', "$testdir/", '-c', 'nginx.conf', '-e', 'error.log', @globals),
++                                or die "Unable to exec(): $!\n";
++                }
 +                else {
 +			exec($NGINX, '-p', "$testdir/", '-c', 'nginx.conf',
 +				'-e', 'error.log', @globals)
@@ -113,7 +121,7 @@ index d2e0079..43d067a 100644
  	}
  
  	# wait for nginx to start
-@@ -473,7 +509,7 @@ sub waitforfile($;$) {
+@@ -473,7 +513,7 @@ sub waitforfile($;$) {
  	# wait for file to appear
  	# or specified process to exit
  
@@ -204,6 +212,37 @@ index d75ca94..f60d6fc 100644
 +like(http_get('/curve', SSL => 1), qr/^SECP256R1/m, 'ssl curve');
  
  ###############################################################################
+diff --git a/ssl_session_ticket_key.t b/ssl_session_ticket_key.t
+index ac49db0..f3eeebb 100644
+--- a/ssl_session_ticket_key.t
++++ b/ssl_session_ticket_key.t
+@@ -114,13 +114,25 @@ sub get_ticket_key_name {
+ 	my $asn = get_ssl_session();
+ 	my $any = qr/[\x00-\xff]/;
+ next:
+-	# tag(10) | len{2} | OCTETSTRING(4) | len{2} | ticket(key_name|..)
++	# tag(10) | len{2} | OCTETSTRING(4) | len{1} | ticket(key_name|..)
+ 	$asn =~ /\xaa\x81($any)\x04\x81($any)($any{16})/g;
++    if (!defined $3) {
++		# Try 2-byte length pattern for long tickets
++		# tag(10) | len{2} | OCTETSTRING(4) | len{2} | ticket(key_name|..)
++		goto next2;
++	}
+ 	return '' if !defined $3;
+ 	goto next if unpack("C", $1) - unpack("C", $2) != 3;
+ 	my $key = unpack "H*", $3;
+ 	Test::Nginx::log_core('||', "ticket key: $key");
+ 	return $key;
++next2:
++	$asn =~ /\xaa\x82($any)($any)\x04\x82($any)($any)($any{16})/g;
++	return '' if !defined $5;
++	goto next2 if ((unpack("C", $1) << 8) | unpack("C", $2)) - ((unpack("C", $3) << 8) | unpack("C", $4)) != 4;
++	my $key2 = unpack "H*", $5;
++	Test::Nginx::log_core('||', "ticket key: $key2");
++	return $key2;
+ }
+ 
+ sub get_ssl_session {
 diff --git a/ssl_stapling.t b/ssl_stapling.t
 index 575c167..c2af82d 100644
 --- a/ssl_stapling.t
