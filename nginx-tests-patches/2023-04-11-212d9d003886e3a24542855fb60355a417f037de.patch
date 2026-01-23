@@ -203,6 +203,37 @@ index 3b6d27dc..b3a32b3a 100644
  
  ###############################################################################
  
+diff --git a/ssl_session_ticket_key.t b/ssl_session_ticket_key.t
+index 860dd897..e48582b1 100644
+--- a/ssl_session_ticket_key.t
++++ b/ssl_session_ticket_key.t
+@@ -109,13 +109,24 @@ sub get_ticket_key_name {
+ 	my $asn = Net::SSLeay::i2d_SSL_SESSION($ses);
+ 	my $any = qr/[\x00-\xff]/;
+ next:
+-	# tag(10) | len{2} | OCTETSTRING(4) | len{2} | ticket(key_name|..)
++	# tag(10) | len{1} | OCTETSTRING(4) | len{1} | ticket(key_name|..)
+ 	$asn =~ /\xaa\x81($any)\x04\x81($any)($any{16})/g;
+-	return '' if !defined $3;
++	if (!defined $3) {
++		# Try 2-byte length pattern for long tickets
++		# tag(10) | len{2} | OCTETSTRING(4) | len{2} | ticket(key_name|..)
++		goto next2;
++	}
+ 	goto next if unpack("C", $1) - unpack("C", $2) != 3;
+ 	my $key = unpack "H*", $3;
+ 	Test::Nginx::log_core('||', "ticket key: $key");
+ 	return $key;
++next2:
++	$asn =~ /\xaa\x82($any)($any)\x04\x82($any)($any)($any{16})/g;
++	return '' if !defined $5;
++	goto next2 if ((unpack("C", $1) << 8) | unpack("C", $2)) - ((unpack("C", $3) << 8) | unpack("C", $4)) != 4;
++	my $key2 = unpack "H*", $5;
++	Test::Nginx::log_core('||', "ticket key: $key2");
++	return $key2;
+ }
+ 
+ sub get_ssl_session {
 diff --git a/ssl_stapling.t b/ssl_stapling.t
 index 06efca1c..71d4e7af 100644
 --- a/ssl_stapling.t
