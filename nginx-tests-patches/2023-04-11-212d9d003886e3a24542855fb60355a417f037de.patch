@@ -1,5 +1,5 @@
 diff --git a/README b/README
-index f43c586..bd259ca 100644
+index f43c5860..bd259ca8 100644
 --- a/README
 +++ b/README
 @@ -52,4 +52,12 @@ TEST_NGINX_GLOBALS_STREAM
@@ -16,7 +16,7 @@ index f43c586..bd259ca 100644
 +
  Happy testing!
 diff --git a/lib/Test/Nginx.pm b/lib/Test/Nginx.pm
-index a74fbf1..09855e5 100644
+index a74fbf15..09855e56 100644
 --- a/lib/Test/Nginx.pm
 +++ b/lib/Test/Nginx.pm
 @@ -29,6 +29,8 @@ use POSIX qw/ waitpid WNOHANG /;
@@ -109,8 +109,46 @@ index a74fbf1..09855e5 100644
  		return 1 if -e $file;
  		return 0 if $exited;
  		$exited = waitpid($pid, WNOHANG) != 0 if $pid;
+diff --git a/ssl_certificate_chain.t b/ssl_certificate_chain.t
+index ef087846..852fb0f6 100644
+--- a/ssl_certificate_chain.t
++++ b/ssl_certificate_chain.t
+@@ -76,7 +76,12 @@ $t->write_file('openssl.conf', <<EOF);
+ default_bits = 2048
+ encrypt_key = no
+ distinguished_name = req_distinguished_name
++x509_extensions = v3_ca
+ [ req_distinguished_name ]
++[ v3_ca ]
++basicConstraints = critical,CA:TRUE
++keyUsage = keyCertSign, cRLSign
++subjectKeyIdentifier = hash
+ EOF
+ 
+ $t->write_file('ca.conf', <<EOF);
+@@ -97,6 +102,12 @@ commonName = supplied
+ 
+ [ myca_extensions ]
+ basicConstraints = critical,CA:TRUE
++keyUsage = keyCertSign, cRLSign, digitalSignature, keyEncipherment
++subjectAltName = IP:127.0.0.1
++
++[ myca_extensions_end ]
++basicConstraints = critical,CA:FALSE
++keyUsage = digitalSignature, keyEncipherment
+ subjectAltName = IP:127.0.0.1
+ EOF
+ 
+@@ -127,6 +138,7 @@ system("openssl ca -batch -config $d/ca.conf "
+ 
+ system("openssl ca -batch -config $d/ca.conf "
+ 	. "-keyfile $d/int.key -cert $d/int.crt "
++	. "-extensions myca_extensions_end "
+ 	. "-subj /CN=end/ -in $d/end.csr -out $d/end.crt "
+ 	. ">>$d/openssl.out 2>&1") == 0
+ 	or die "Can't sign certificate for end: $!\n";
 diff --git a/ssl_certificates.t b/ssl_certificates.t
-index a6ec6ad..c9d1ef4 100644
+index a6ec6adc..c9d1ef49 100644
 --- a/ssl_certificates.t
 +++ b/ssl_certificates.t
 @@ -47,23 +47,16 @@ events {
@@ -153,7 +191,7 @@ index a6ec6ad..c9d1ef4 100644
  ###############################################################################
  
 diff --git a/ssl_curve.t b/ssl_curve.t
-index 3b6d27d..b3a32b3 100644
+index 3b6d27dc..b3a32b3a 100644
 --- a/ssl_curve.t
 +++ b/ssl_curve.t
 @@ -82,7 +82,7 @@ $t->try_run('no $ssl_curve')->plan(1);
@@ -166,7 +204,7 @@ index 3b6d27d..b3a32b3 100644
  ###############################################################################
  
 diff --git a/ssl_stapling.t b/ssl_stapling.t
-index 06efca1..71d4e7a 100644
+index 06efca1c..71d4e7af 100644
 --- a/ssl_stapling.t
 +++ b/ssl_stapling.t
 @@ -53,18 +53,14 @@ http {
@@ -367,7 +405,7 @@ index 06efca1..71d4e7a 100644
  TODO: {
  local $TODO = 'broken TLSv1.3 sigalgs in LibreSSL'
 diff --git a/ssl_verify_depth.t b/ssl_verify_depth.t
-index 4e010cc..b8d1a39 100644
+index 4e010cce..b8d1a399 100644
 --- a/ssl_verify_depth.t
 +++ b/ssl_verify_depth.t
 @@ -47,7 +47,7 @@ http {

@@ -143,6 +143,44 @@ index b07cea5..a4b2a65 100644
  	->has_daemon('openssl');
  
  $t->write_file_expand('nginx.conf', <<'EOF');
+diff --git a/ssl_certificate_chain.t b/ssl_certificate_chain.t
+index 0fce937..61c809b 100644
+--- a/ssl_certificate_chain.t
++++ b/ssl_certificate_chain.t
+@@ -71,7 +71,12 @@ $t->write_file('openssl.conf', <<EOF);
+ default_bits = 2048
+ encrypt_key = no
+ distinguished_name = req_distinguished_name
++x509_extensions = v3_ca
+ [ req_distinguished_name ]
++[ v3_ca ]
++basicConstraints = critical,CA:TRUE
++keyUsage = keyCertSign, cRLSign
++subjectKeyIdentifier = hash
+ EOF
+ 
+ $t->write_file('ca.conf', <<EOF);
+@@ -92,6 +97,12 @@ commonName = supplied
+ 
+ [ myca_extensions ]
+ basicConstraints = critical,CA:TRUE
++keyUsage = keyCertSign, cRLSign, digitalSignature, keyEncipherment
++subjectAltName = IP:127.0.0.1
++
++[ myca_extensions_end ]
++basicConstraints = critical,CA:FALSE
++keyUsage = digitalSignature, keyEncipherment
+ subjectAltName = IP:127.0.0.1
+ EOF
+ 
+@@ -122,6 +133,7 @@ system("openssl ca -batch -config $d/ca.conf "
+ 
+ system("openssl ca -batch -config $d/ca.conf "
+ 	. "-keyfile $d/int.key -cert $d/int.crt "
++	. "-extensions myca_extensions_end "
+ 	. "-subj /CN=end/ -in $d/end.csr -out $d/end.crt "
+ 	. ">>$d/openssl.out 2>&1") == 0
+ 	or die "Can't sign certificate for end: $!\n";
 diff --git a/ssl_certificates.t b/ssl_certificates.t
 index 4697af9..198000d 100644
 --- a/ssl_certificates.t
