@@ -1,8 +1,8 @@
 diff --git a/README b/README
-index f43c586..0441316 100644
+index f43c586..3cc189b 100644
 --- a/README
 +++ b/README
-@@ -52,4 +52,16 @@ TEST_NGINX_GLOBALS_STREAM
+@@ -52,4 +52,20 @@ TEST_NGINX_GLOBALS_STREAM
  
      Sets additional directives in stream context.
  
@@ -18,22 +18,13 @@ index f43c586..0441316 100644
 +
 +    Run Nginx under rr record for deterministic debugging.
 +
++    Usage example:
++        $ TEST_NGINX_RR=1 TEST_NGINX_LEAVE=1 prove access.t
++        $ rr replay
++
  Happy testing!
-diff --git a/grpc_ssl.t b/grpc_ssl.t
-index 8ae8a5d..84cc746 100644
---- a/grpc_ssl.t
-+++ b/grpc_ssl.t
-@@ -24,7 +24,7 @@ select STDERR; $| = 1;
- select STDOUT; $| = 1;
- 
- my $t = Test::Nginx->new()->has(qw/http rewrite http_v2 grpc/)
--	->has(qw/upstream_keepalive http_ssl openssl:1.0.2/)
-+	->has(qw/upstream_keepalive http_ssl/)
- 	->has_daemon('openssl')
- 	->write_file_expand('nginx.conf', <<'EOF')->plan(38);
- 
 diff --git a/lib/Test/Nginx.pm b/lib/Test/Nginx.pm
-index d2e0079..56a8949 100644
+index c747931..0cb3dbe 100644
 --- a/lib/Test/Nginx.pm
 +++ b/lib/Test/Nginx.pm
 @@ -29,6 +29,8 @@ use POSIX qw/ waitpid WNOHANG /;
@@ -54,24 +45,7 @@ index d2e0079..56a8949 100644
  	if (Test::More->builder->expected_tests) {
  		local $Test::Nginx::TODO = 'alerts' unless $self->{_alerts};
  
-@@ -85,12 +89,15 @@ sub DESTROY {
- 	if (Test::More->builder->expected_tests) {
- 		local $Test::Nginx::TODO;
- 		my $errors = $self->read_file('error.log');
--		$errors = join "\n", $errors =~ /.+Sanitizer.+/gm;
-+		$errors = join "\n", $errors =~ /.+(ERROR: AddressSanitizer)|(Direct leak of).+/gm;
- 		Test::More::is($errors, '', 'no sanitizer errors');
- 	}
- 
- 	if ($ENV{TEST_NGINX_CATLOG}) {
- 		system("cat $self->{_testdir}/error.log");
-+		if ($ENV{TEST_NGINX_VALGRIND}) {
-+			system("cat $self->{_testdir}/valgrind.log");
-+		}
- 	}
- 	if (not $ENV{TEST_NGINX_LEAVE}) {
- 		eval { rmtree($self->{_testdir}); };
-@@ -383,13 +390,46 @@ sub run(;$) {
+@@ -394,13 +398,46 @@ sub run(;$) {
  	my $pid = fork();
  	die "Unable to fork(): $!\n" unless defined $pid;
  
@@ -121,7 +95,7 @@ index d2e0079..56a8949 100644
  	}
  
  	# wait for nginx to start
-@@ -473,7 +513,7 @@ sub waitforfile($;$) {
+@@ -484,7 +521,7 @@ sub waitforfile($;$) {
  	# wait for file to appear
  	# or specified process to exit
  
@@ -130,8 +104,86 @@ index d2e0079..56a8949 100644
  		return 1 if -e $file;
  		return 0 if $exited;
  		$exited = waitpid($pid, WNOHANG) != 0 if $pid;
+diff --git a/mail_ssl_conf_command.t b/mail_ssl_conf_command.t
+index b968878..a8414f7 100644
+--- a/mail_ssl_conf_command.t
++++ b/mail_ssl_conf_command.t
+@@ -26,7 +26,7 @@ select STDOUT; $| = 1;
+ local $SIG{PIPE} = 'IGNORE';
+ 
+ my $t = Test::Nginx->new()
+-	->has(qw/mail mail_ssl imap openssl:1.0.2 socket_ssl_reused/)
++	->has(qw/mail mail_ssl imap socket_ssl_reused/)
+ 	->has_daemon('openssl');
+ 
+ $t->write_file_expand('nginx.conf', <<'EOF');
+diff --git a/proxy_ssl_certificate_cache.t b/proxy_ssl_certificate_cache.t
+index c737c5e..614143f 100644
+--- a/proxy_ssl_certificate_cache.t
++++ b/proxy_ssl_certificate_cache.t
+@@ -23,7 +23,7 @@ select STDERR; $| = 1;
+ select STDOUT; $| = 1;
+ 
+ my $t = Test::Nginx->new()
+-	->has(qw/http http_ssl proxy openssl:1.0.2/)
++	->has(qw/http http_ssl proxy/)
+ 	->has_daemon('openssl');
+ 
+ $t->write_file_expand('nginx.conf', <<'EOF');
+@@ -194,6 +194,10 @@ like(http_get('/enc/?cert=e'), qr/CN=e.example.com/, 'encrypted');
+ 
+ like(http_get('/?cert=e'), qr/500 Internal/, 'encrypted no password');
+ 
++SKIP: {
++skip 'wolfSSL cannot switch from encrypted to non-encrypted cert', 2
++	if $t->has_module('wolfSSL');
++
+ update($t, 'e.example.com', 'dummy');
+ like(http_get('/enc/?cert=e'), qr/CN=dummy/, 'encrypted not cached');
+ 
+@@ -202,6 +206,8 @@ like(http_get('/enc/?cert=e'), qr/CN=dummy/, 'encrypted not cached');
+ update($t, 'e.example.com', 'eb.example.com');
+ like(http_get('/enc/?cert=e'), qr/CN=dummy/, 'cached after encrypted');
+ 
++}
++
+ like(http_get('/nocache/?cert=4'), qr/CN=4.example.com/, 'no cache');
+ 
+ update($t, '4.example.com', 'dummy');
+@@ -216,12 +222,18 @@ like(http_get('/?cert=3'), qr/500 Internal/, 'certificate 3 expired');
+ 
+ # replacing cacheable item with non-cacheable doesn't affect cacheability
+ 
++SKIP: {
++skip 'wolfSSL cannot switch from encrypted to non-encrypted cert', 2
++	if $t->has_module('wolfSSL');
++
+ like(http_get('/enc/?cert=e'), qr/CN=e.example.com/, 'encrypted after cached');
+ 
+ update($t, 'e.example.com', 'dummy');
+ like(http_get('/enc/?cert=e'), qr/CN=dummy/,
+ 	'encrypted not cached after cached');
+ 
++}
++
+ # eviction after inactive time
+ 
+ update($t, '5.example.com', 'dummy');
+diff --git a/proxy_ssl_conf_command.t b/proxy_ssl_conf_command.t
+index 13683c4..6c0ae4f 100644
+--- a/proxy_ssl_conf_command.t
++++ b/proxy_ssl_conf_command.t
+@@ -23,7 +23,7 @@ select STDERR; $| = 1;
+ select STDOUT; $| = 1;
+ 
+ my $t = Test::Nginx->new()
+-	->has(qw/http http_ssl proxy uwsgi http_v2 grpc openssl:1.0.2/)
++	->has(qw/http http_ssl proxy uwsgi http_v2 grpc/)
+ 	->has_daemon('openssl');
+ 
+ $t->write_file_expand('nginx.conf', <<'EOF');
 diff --git a/ssl_certificate.t b/ssl_certificate.t
-index b07cea5..a4b2a65 100644
+index 79572bc..43e1265 100644
 --- a/ssl_certificate.t
 +++ b/ssl_certificate.t
 @@ -25,7 +25,7 @@ select STDERR; $| = 1;
@@ -143,49 +195,24 @@ index b07cea5..a4b2a65 100644
  	->has_daemon('openssl');
  
  $t->write_file_expand('nginx.conf', <<'EOF');
-diff --git a/ssl_certificate_chain.t b/ssl_certificate_chain.t
-index 0fce937..61c809b 100644
---- a/ssl_certificate_chain.t
-+++ b/ssl_certificate_chain.t
-@@ -71,7 +71,12 @@ $t->write_file('openssl.conf', <<EOF);
- default_bits = 2048
- encrypt_key = no
- distinguished_name = req_distinguished_name
-+x509_extensions = v3_ca
- [ req_distinguished_name ]
-+[ v3_ca ]
-+basicConstraints = critical,CA:TRUE
-+keyUsage = keyCertSign, cRLSign
-+subjectKeyIdentifier = hash
- EOF
+diff --git a/ssl_certificate_cache.t b/ssl_certificate_cache.t
+index e70225b..96075f9 100644
+--- a/ssl_certificate_cache.t
++++ b/ssl_certificate_cache.t
+@@ -23,7 +23,7 @@ select STDERR; $| = 1;
+ select STDOUT; $| = 1;
  
- $t->write_file('ca.conf', <<EOF);
-@@ -92,6 +97,12 @@ commonName = supplied
+ my $t = Test::Nginx->new()
+-	->has(qw/http http_ssl openssl:1.0.2 socket_ssl_sni/)
++	->has(qw/http http_ssl socket_ssl_sni/)
+ 	->has_daemon('openssl');
  
- [ myca_extensions ]
- basicConstraints = critical,CA:TRUE
-+keyUsage = keyCertSign, cRLSign, digitalSignature, keyEncipherment
-+subjectAltName = IP:127.0.0.1
-+
-+[ myca_extensions_end ]
-+basicConstraints = critical,CA:FALSE
-+keyUsage = digitalSignature, keyEncipherment
- subjectAltName = IP:127.0.0.1
- EOF
- 
-@@ -122,6 +133,7 @@ system("openssl ca -batch -config $d/ca.conf "
- 
- system("openssl ca -batch -config $d/ca.conf "
- 	. "-keyfile $d/int.key -cert $d/int.crt "
-+	. "-extensions myca_extensions_end "
- 	. "-subj /CN=end/ -in $d/end.csr -out $d/end.crt "
- 	. ">>$d/openssl.out 2>&1") == 0
- 	or die "Can't sign certificate for end: $!\n";
+ $t->write_file_expand('nginx.conf', <<'EOF');
 diff --git a/ssl_certificates.t b/ssl_certificates.t
-index 4697af9..198000d 100644
+index cf4cc35..d363f83 100644
 --- a/ssl_certificates.t
 +++ b/ssl_certificates.t
-@@ -39,8 +39,6 @@ events {
+@@ -39,23 +39,16 @@ events {
  http {
      %%TEST_GLOBALS_HTTP%%
  
@@ -193,8 +220,7 @@ index 4697af9..198000d 100644
 -    ssl_certificate rsa.crt;
      ssl_ciphers DEFAULT:ECCdraft;
  
-     add_header X-SSL-Protocol $ssl_protocol;
-@@ -49,15 +47,10 @@ http {
+     server {
          listen       127.0.0.1:8443 ssl;
          server_name  localhost;
  
@@ -211,62 +237,51 @@ index 4697af9..198000d 100644
  }
  
  EOF
-@@ -87,7 +80,7 @@ foreach my $name ('ec', 'rsa') {
- 
- $t->write_file('index.html', '');
+@@ -83,12 +76,12 @@ foreach my $name ('ec', 'rsa') {
+ 		or die "Can't create certificate for $name: $!\n";
+ }
  
 -$t->run()->plan(2);
 +$t->run()->plan(1);
  
  ###############################################################################
  
-@@ -99,8 +92,6 @@ like(cert('RSA'), qr/CN=rsa/, 'ssl cert RSA');
- 
- }
- 
+ like(cert('RSA'), qr/CN=rsa/, 'ssl cert RSA');
 -like(cert('ECDSA'), qr/CN=ec/, 'ssl cert ECDSA');
--
++# wolfSSL doesn't support multiple certificates on one SSL_CTX
+ 
  ###############################################################################
  
- sub test_tls13 {
-diff --git a/ssl_curve.t b/ssl_curve.t
-index d75ca94..f60d6fc 100644
---- a/ssl_curve.t
-+++ b/ssl_curve.t
+diff --git a/ssl_conf_command.t b/ssl_conf_command.t
+index 5e56d76..58ebf09 100644
+--- a/ssl_conf_command.t
++++ b/ssl_conf_command.t
 @@ -23,7 +23,7 @@ select STDERR; $| = 1;
  select STDOUT; $| = 1;
  
  my $t = Test::Nginx->new()
--	->has(qw/http http_ssl rewrite socket_ssl openssl:3.0.0/)
-+	->has(qw/http http_ssl rewrite socket_ssl/)
+-	->has(qw/http http_ssl openssl:1.0.2 socket_ssl_reused/)
++	->has(qw/http http_ssl socket_ssl_reused/)
  	->has_daemon('openssl');
  
  $t->write_file_expand('nginx.conf', <<'EOF');
-@@ -75,6 +75,6 @@ $t->try_run('no $ssl_curve')->plan(1);
- 
- ###############################################################################
- 
--like(http_get('/curve', SSL => 1), qr/^prime256v1 /m, 'ssl curve');
-+like(http_get('/curve', SSL => 1), qr/^SECP256R1/m, 'ssl curve');
- 
- ###############################################################################
 diff --git a/ssl_session_ticket_key.t b/ssl_session_ticket_key.t
-index ac49db0..f3eeebb 100644
+index 6559d9c..46a3fb8 100644
 --- a/ssl_session_ticket_key.t
 +++ b/ssl_session_ticket_key.t
-@@ -114,13 +114,25 @@ sub get_ticket_key_name {
+@@ -112,13 +112,24 @@ sub get_ticket_key_name {
  	my $asn = get_ssl_session();
  	my $any = qr/[\x00-\xff]/;
  next:
 -	# tag(10) | len{2} | OCTETSTRING(4) | len{2} | ticket(key_name|..)
-+	# tag(10) | len{2} | OCTETSTRING(4) | len{1} | ticket(key_name|..)
++	# tag(10) | len{1} | OCTETSTRING(4) | len{1} | ticket(key_name|..)
  	$asn =~ /\xaa\x81($any)\x04\x81($any)($any{16})/g;
-+    if (!defined $3) {
+-	return '' if !defined $3;
++	if (!defined $3) {
 +		# Try 2-byte length pattern for long tickets
 +		# tag(10) | len{2} | OCTETSTRING(4) | len{2} | ticket(key_name|..)
 +		goto next2;
 +	}
- 	return '' if !defined $3;
  	goto next if unpack("C", $1) - unpack("C", $2) != 3;
  	my $key = unpack "H*", $3;
  	Test::Nginx::log_core('||', "ticket key: $key");
@@ -281,8 +296,34 @@ index ac49db0..f3eeebb 100644
  }
  
  sub get_ssl_session {
+diff --git a/ssl_sigalg.t b/ssl_sigalg.t
+index 9669689..5994026 100644
+--- a/ssl_sigalg.t
++++ b/ssl_sigalg.t
+@@ -22,7 +22,7 @@ use Test::Nginx;
+ select STDERR; $| = 1;
+ select STDOUT; $| = 1;
+ 
+-my $t = Test::Nginx->new()->has(qw/http http_ssl openssl:3.5 socket_ssl/)
++my $t = Test::Nginx->new()->has(qw/http http_ssl socket_ssl/)
+ 	->has_daemon('openssl');
+ 
+ $t->write_file_expand('nginx.conf', <<'EOF');
+diff --git a/ssl_sni_protocols.t b/ssl_sni_protocols.t
+index 57a20f8..bc319d5 100644
+--- a/ssl_sni_protocols.t
++++ b/ssl_sni_protocols.t
+@@ -22,7 +22,7 @@ use Test::Nginx;
+ select STDERR; $| = 1;
+ select STDOUT; $| = 1;
+ 
+-my $t = Test::Nginx->new()->has(qw/http http_ssl openssl:1.1.1 socket_ssl_sni/);
++my $t = Test::Nginx->new()->has(qw/http http_ssl socket_ssl_sni/);
+ 
+ eval { defined &Net::SSLeay::CTX_set_ciphersuites or die; };
+ plan(skip_all => 'Net::SSLeay too old') if $@;
 diff --git a/ssl_stapling.t b/ssl_stapling.t
-index 575c167..c2af82d 100644
+index 1b225ed..3c44cb8 100644
 --- a/ssl_stapling.t
 +++ b/ssl_stapling.t
 @@ -49,12 +49,6 @@ http {
@@ -431,7 +472,7 @@ index 575c167..c2af82d 100644
  }
  
  EOF
-@@ -245,12 +310,12 @@ $t->waitforsocket("127.0.0.1:" . port(8081));
+@@ -248,12 +313,12 @@ $t->waitforsocket("127.0.0.1:" . port(8081));
  ###############################################################################
  
  staple(8443, 'RSA');
@@ -449,7 +490,7 @@ index 575c167..c2af82d 100644
  
  sleep 1;
  
-@@ -260,8 +325,7 @@ TODO: {
+@@ -263,8 +328,7 @@ TODO: {
  local $TODO = 'broken TLSv1.3 sigalgs in LibreSSL'
  	if $t->has_module('LibreSSL') && test_tls13();
  
@@ -459,7 +500,7 @@ index 575c167..c2af82d 100644
  }
  
  ok(!staple(8444, 'RSA'), 'responder revoked');
-@@ -270,18 +334,18 @@ TODO: {
+@@ -273,18 +337,18 @@ TODO: {
  local $TODO = 'broken TLSv1.3 sigalgs in LibreSSL'
  	if $t->has_module('LibreSSL') && test_tls13();
  
@@ -483,8 +524,21 @@ index 575c167..c2af82d 100644
  
  TODO: {
  local $TODO = 'broken TLSv1.3 sigalgs in LibreSSL'
+diff --git a/ssl_store_keys.t b/ssl_store_keys.t
+index ec45782..6460569 100644
+--- a/ssl_store_keys.t
++++ b/ssl_store_keys.t
+@@ -25,7 +25,7 @@ select STDOUT; $| = 1;
+ plan(skip_all => 'win32') if $^O eq 'MSWin32';
+ 
+ my $t = Test::Nginx->new()
+-	->has(qw/http http_ssl geo openssl:1.1.1 socket_ssl_sni/)
++	->has(qw/http http_ssl geo socket_ssl_sni/)
+ 	->has_daemon('openssl');
+ 
+ plan(skip_all => 'BoringSSL') if $t->has_module('BoringSSL|AWS-LC');
 diff --git a/ssl_verify_depth.t b/ssl_verify_depth.t
-index 7f2f37b..7bd6141 100644
+index 89c6668..107d454 100644
 --- a/ssl_verify_depth.t
 +++ b/ssl_verify_depth.t
 @@ -43,7 +43,7 @@ http {
@@ -496,7 +550,7 @@ index 7f2f37b..7bd6141 100644
  
      add_header X-Client $ssl_client_s_dn always;
      add_header X-Verify $ssl_client_verify always;
-@@ -97,6 +97,7 @@ commonName = supplied
+@@ -100,6 +100,7 @@ commonName = supplied
  
  [ myca_extensions ]
  basicConstraints = critical,CA:TRUE
@@ -504,7 +558,7 @@ index 7f2f37b..7bd6141 100644
  EOF
  
  foreach my $name ('root', 'localhost') {
-@@ -132,6 +133,9 @@ system("openssl ca -batch -config $d/ca.conf "
+@@ -135,6 +136,9 @@ system("openssl ca -batch -config $d/ca.conf "
  
  $t->write_file('root-int.crt', $t->read_file('root.crt')
  	. $t->read_file('int.crt'));
@@ -514,7 +568,7 @@ index 7f2f37b..7bd6141 100644
  
  $t->write_file('t', '');
  $t->run();
-@@ -147,7 +151,7 @@ $t->run();
+@@ -150,7 +154,7 @@ $t->run();
  
  like(get(8080, 'root'), qr/SUCCESS/, 'verify depth 0 - root');
  like(get(8080, 'int'),  qr/FAI|SUC/, 'verify depth 0 - no int');
@@ -523,7 +577,7 @@ index 7f2f37b..7bd6141 100644
  
  # with verify depth 1 (the default), one signature is
  # expected to be checked, so certificates directly signed
-@@ -159,14 +163,14 @@ like(get(8080, 'end'),  qr/FAILED/,  'verify depth 0 - no end');
+@@ -162,14 +166,14 @@ like(get(8080, 'end'),  qr/FAILED/,  'verify depth 0 - no end');
  
  like(get(8081, 'root'), qr/SUCCESS/, 'verify depth 1 - root');
  like(get(8081, 'int'),  qr/SUCCESS/, 'verify depth 1 - int');
@@ -540,8 +594,71 @@ index 7f2f37b..7bd6141 100644
  
  ###############################################################################
  
+diff --git a/stream_proxy_ssl_certificate_cache.t b/stream_proxy_ssl_certificate_cache.t
+index c8b80ac..68aca28 100644
+--- a/stream_proxy_ssl_certificate_cache.t
++++ b/stream_proxy_ssl_certificate_cache.t
+@@ -23,7 +23,7 @@ select STDERR; $| = 1;
+ select STDOUT; $| = 1;
+ 
+ my $t = Test::Nginx->new()
+-	->has(qw/stream stream_ssl http http_ssl openssl:1.0.2 socket_ssl_sni/)
++	->has(qw/stream stream_ssl http http_ssl socket_ssl_sni/)
+ 	->has_daemon('openssl');
+ 
+ $t->write_file_expand('nginx.conf', <<'EOF');
+@@ -212,6 +212,10 @@ like(get('e.example.com'), qr/CN=e.example.com/, 'encrypted');
+ 
+ ok(!get('e.example.com', 8444), 'encrypted no password');
+ 
++SKIP: {
++skip 'wolfSSL cannot transition from encrypted to non-encrypted key', 2
++	if $t->has_module('wolfSSL');
++
+ update($t, 'e.example.com', 'dummy');
+ like(get('e.example.com'), qr/CN=dummy/, 'encrypted not cached');
+ 
+@@ -220,6 +224,8 @@ like(get('e.example.com'), qr/CN=dummy/, 'encrypted not cached');
+ update($t, 'e.example.com', 'eb.example.com');
+ like(get('e.example.com'), qr/CN=dummy/, 'cached after encrypted');
+ 
++}
++
+ like(get('4.example.com'), qr/CN=4.example.com/, 'no cache');
+ 
+ update($t, '4.example.com', 'dummy');
+@@ -236,10 +242,16 @@ ok(!get('3.example.com'), 'certificate 3 expired');
+ 
+ like(get('e.example.com'), qr/CN=e.example.com/, 'encrypted after cached');
+ 
++SKIP: {
++skip 'wolfSSL cannot transition from encrypted to non-encrypted key', 1
++	if $t->has_module('wolfSSL');
++
+ update($t, 'e.example.com', 'dummy');
+ like(get('e.example.com'), qr/CN=dummy/,
+ 	'encrypted not cached after cached');
+ 
++}
++
+ # eviction after inactive time
+ 
+ update($t, '5.example.com', 'dummy');
+diff --git a/stream_proxy_ssl_conf_command.t b/stream_proxy_ssl_conf_command.t
+index a59cdb7..9047126 100644
+--- a/stream_proxy_ssl_conf_command.t
++++ b/stream_proxy_ssl_conf_command.t
+@@ -23,7 +23,7 @@ select STDERR; $| = 1;
+ select STDOUT; $| = 1;
+ 
+ my $t = Test::Nginx->new()
+-	->has(qw/stream stream_ssl http http_ssl openssl:1.0.2/)
++	->has(qw/stream stream_ssl http http_ssl/)
+ 	->has_daemon('openssl');
+ 
+ $t->write_file_expand('nginx.conf', <<'EOF');
 diff --git a/stream_ssl_certificate.t b/stream_ssl_certificate.t
-index ed0a831..1b42d03 100644
+index caa521e..b620cf9 100644
 --- a/stream_ssl_certificate.t
 +++ b/stream_ssl_certificate.t
 @@ -24,7 +24,7 @@ select STDERR; $| = 1;
@@ -553,3 +670,134 @@ index ed0a831..1b42d03 100644
  	->has(qw/socket_ssl_sni/)
  	->has_daemon('openssl')
  	->write_file_expand('nginx.conf', <<'EOF');
+diff --git a/stream_ssl_certificate_cache.t b/stream_ssl_certificate_cache.t
+index 5b46bf3..a358870 100644
+--- a/stream_ssl_certificate_cache.t
++++ b/stream_ssl_certificate_cache.t
+@@ -23,7 +23,7 @@ select STDERR; $| = 1;
+ select STDOUT; $| = 1;
+ 
+ my $t = Test::Nginx->new()
+-	->has(qw/stream stream_ssl openssl:1.0.2 socket_ssl_sni/)
++	->has(qw/stream stream_ssl socket_ssl_sni/)
+ 	->has_daemon('openssl');
+ 
+ $t->write_file_expand('nginx.conf', <<'EOF');
+diff --git a/stream_ssl_conf_command.t b/stream_ssl_conf_command.t
+index 313bba5..626160a 100644
+--- a/stream_ssl_conf_command.t
++++ b/stream_ssl_conf_command.t
+@@ -24,7 +24,7 @@ select STDERR; $| = 1;
+ select STDOUT; $| = 1;
+ 
+ my $t = Test::Nginx->new()
+-	->has(qw/stream stream_ssl stream_return openssl:1.0.2/)
++	->has(qw/stream stream_ssl stream_return/)
+ 	->has(qw/socket_ssl_reused/)
+ 	->has_daemon('openssl');
+ 
+diff --git a/stream_ssl_sni_protocols.t b/stream_ssl_sni_protocols.t
+index 3efd97d..1a3cb27 100644
+--- a/stream_ssl_sni_protocols.t
++++ b/stream_ssl_sni_protocols.t
+@@ -23,7 +23,7 @@ select STDERR; $| = 1;
+ select STDOUT; $| = 1;
+ 
+ my $t = Test::Nginx->new()
+-	->has(qw/stream stream_ssl stream_return openssl:1.1.1 socket_ssl_sni/);
++	->has(qw/stream stream_ssl stream_return socket_ssl_sni/);
+ 
+ eval { defined &Net::SSLeay::CTX_set_ciphersuites or die; };
+ plan(skip_all => 'Net::SSLeay too old') if $@;
+diff --git a/stream_ssl_stapling.t b/stream_ssl_stapling.t
+index 2000ce0..a29e444 100644
+--- a/stream_ssl_stapling.t
++++ b/stream_ssl_stapling.t
+@@ -50,9 +50,6 @@ stream {
+     ssl_stapling on;
+     ssl_trusted_certificate trusted.crt;
+ 
+-    ssl_certificate ec-end-int.crt;
+-    ssl_certificate_key ec-end.key;
+-
+     ssl_certificate end-int.crt;
+     ssl_certificate_key end.key;
+ 
+@@ -65,6 +62,14 @@ stream {
+     }
+ 
+     server {
++        listen       127.0.0.1:8543 ssl;
++        server_name  localhost;
++
++        ssl_certificate ec-end-int.crt;
++        ssl_certificate_key ec-end.key;
++    }
++
++    server {
+         listen       127.0.0.1:8444 ssl;
+         server_name  localhost;
+ 
+@@ -72,9 +77,22 @@ stream {
+     }
+ 
+     server {
++        listen       127.0.0.1:8544 ssl;
++        server_name  localhost;
++
++        ssl_certificate ec-end-int.crt;
++        ssl_certificate_key ec-end.key;
++
++        ssl_stapling_responder http://127.0.0.1:8081/;
++    }
++
++    server {
+         listen       127.0.0.1:8445 ssl;
+         server_name  localhost;
+ 
++        ssl_certificate ec-end-int.crt;
++        ssl_certificate_key ec-end.key;
++
+         ssl_stapling_verify on;
+     }
+ 
+@@ -110,6 +128,9 @@ stream {
+         listen       127.0.0.1:8449 ssl;
+         server_name  localhost;
+ 
++        ssl_certificate ec-end-int.crt;
++        ssl_certificate_key ec-end.key;
++
+         ssl_stapling_responder http://127.0.0.1:8080/;
+     }
+ }
+@@ -247,9 +268,9 @@ $t->waitforsocket("127.0.0.1:" . port(8081));
+ ###############################################################################
+ 
+ staple(8443, 'RSA');
+-staple(8443, 'ECDSA');
++staple(8543, 'ECDSA');
+ staple(8444, 'RSA');
+-staple(8444, 'ECDSA');
++staple(8544, 'ECDSA');
+ staple(8445, 'ECDSA');
+ staple(8446, 'ECDSA');
+ staple(8449, 'ECDSA');
+@@ -262,7 +283,7 @@ TODO: {
+ local $TODO = 'broken TLSv1.3 sigalgs in LibreSSL'
+ 	if $t->has_module('LibreSSL') && test_tls13();
+ 
+-ok(staple(8443, 'ECDSA'), 'staple success');
++ok(staple(8543, 'ECDSA'), 'staple success');
+ 
+ }
+ 
+@@ -272,7 +293,7 @@ TODO: {
+ local $TODO = 'broken TLSv1.3 sigalgs in LibreSSL'
+ 	if $t->has_module('LibreSSL') && test_tls13();
+ 
+-ok(staple(8444, 'ECDSA'), 'responder success');
++ok(staple(8544, 'ECDSA'), 'responder success');
+ 
+ }
+ 
